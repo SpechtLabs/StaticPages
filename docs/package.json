@@ -1,0 +1,42 @@
+{
+  "name": "calendar-api-docs",
+  "version": "1.0.0",
+  "description": "The documentation website for CalendarAPI, generated with VuePress",
+  "main": "index.js",
+  "scripts": {
+    "build": "vuepress build --clean-cache --clean-temp",
+    "dev": "vuepress dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SpechtLabs/CalendarAPI.git"
+  },
+  "keywords": [
+    "calendar-api",
+    "ical",
+    "restapi",
+    "rest",
+    "grpc",
+    "documentation",
+    "vuepress",
+    "website",
+    "docs"
+  ],
+  "author": "Cedric Kienzler <cedi@specht-labs.de>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/SpechtLabs/CalendarAPI/issues"
+  },
+  "homepage": "https://github.com/SpechtLabs/CalendarAPI#readme",
+  "devDependencies": {
+    "@vuepress/bundler-vite": "2.0.0-rc.20",
+    "@vuepress/plugin-google-analytics": "2.0.0-rc.80",
+    "@vuepress/plugin-register-components": "2.0.0-rc.82",
+    "@vuepress/theme-default": "2.0.0-rc.90",
+    "sass-embedded": "^1.86.0",
+    "vuepress": "2.0.0-rc.20"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.38.0"
+  }
+}

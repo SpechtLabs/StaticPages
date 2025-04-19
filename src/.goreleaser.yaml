@@ -1,0 +1,34 @@
+version: 2
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+builds:
+  - binary: calendarapi
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -X=main.Version={{.Version}}
+      - -X=main.Branch={{.Branch}}
+      - -X=main.version={{.Version}}
+      - -X=main.commit={{.Commit}}
+      - -X=main.date={{ .CommitTimestamp }}
+      - -X=main.builtBy=goreleaser
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

@@ -6,21 +6,13 @@ actions:
     - text: Get Started
       link: /guide/
     - text: Download
-      link: https://github.com/SpechtLabs/CalendarAPI/releases
+      link: https://github.com/SpechtLabs/StaticPages/releases
       type: secondary
 ---
 
-CalendarAPI is a service that parses iCal files and exposes their content via gRPC or a REST API. It uses Viper for configuration, which supports runtime reloads.
-
-## ⚙️ Features
-
-- ✅ Parse iCal (.ics) files from **URLs or local files**
-- ✅ Exposes events via **REST** and **gRPC** APIs
-- ✅ Built-in **rule engine** for relabeling, filtering, and skipping events
-- ✅ Supports **hot configuration reloads** (with [Viper](https://github.com/spf13/viper))
-- ✅ [HomeAssistant Add-On] to easily host CalendarAPI on your Home Assistant
+StaticPages is a simple server implementation to host your static pages with support for preview URLs.
 
 <ClientOnly>
-    <Contributors repo="SpechtLabs/CalendarAPI" />
-    <Releases repo="SpechtLabs/CalendarAPI" />
+    <Contributors repo="SpechtLabs/StaticPages" />
+    <Releases repo="SpechtLabs/StaticPages" />
 </ClientOnly>

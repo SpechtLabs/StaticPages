@@ -15,12 +15,12 @@ import (
 
 type Proxy struct {
 	zapLog *otelzap.Logger
-	page   config.Page
+	page   *config.Page
 	proxy  *httputil.ReverseProxy
 }
 
-func NewProxy(zapLog *otelzap.Logger, page config.Page) *Proxy {
-	targetURL, err := url.Parse(page.Bucket.URL.String())
+func NewProxy(zapLog *otelzap.Logger, page *config.Page) *Proxy {
+	targetURL, err := url.Parse(page.Proxy.URL.String())
 	if err != nil {
 		return nil
 	}
@@ -30,19 +30,13 @@ func NewProxy(zapLog *otelzap.Logger, page config.Page) *Proxy {
 			originalPath := req.URL.Path
 
 			// Create a clean path without double slashes
-			targetPath := path.Clean(fmt.Sprintf("/%s/%s%s",
-				page.Bucket.Name.String(),
-				page.Bucket.Page.String(),
+			targetPath := path.Clean(fmt.Sprintf("/%s/%s/",
+				page.Proxy.Path,
 				originalPath,
 			))
 
 			if strings.HasSuffix(originalPath, "/") {
-				fallbackPaths := []string{
-					"/index.html",
-					"/index.htm",
-				}
-
-				for _, fallbackPath := range fallbackPaths {
+				for _, fallbackPath := range page.Proxy.SearchPath {
 					testTarget := targetPath + fallbackPath
 					if _, err := http.Head(targetURL.String() + testTarget); err == nil {
 						targetPath = testTarget

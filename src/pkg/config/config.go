@@ -10,6 +10,7 @@ import (
 type Page struct {
 	Domain     string               `yaml:"domain"`
 	Bucket     BucketConfig         `yaml:"bucket"`
+	Proxy      ProxyConfig          `yaml:"proxy"`
 	History    int                  `yaml:"history"`
 	Allowed    []string             `yaml:"allowed"`
 	SubDomains map[string]SubDomain `yaml:"subDomains"`
@@ -20,8 +21,24 @@ func (p *Page) Validate() humane.Error {
 		return humane.Wrap(err, "Invalid bucket configuration", err.Advice()...)
 	}
 
+	if err := p.Proxy.Validate(); err != nil {
+		return humane.Wrap(err, "Invalid proxy configuration", err.Advice()...)
+	}
+
 	if p.History < 0 {
 		return humane.New("Invalid number of revisions to keep ", "history must be a non-negative value")
+	}
+
+	return nil
+}
+
+func (p *Page) Parse() humane.Error {
+	if err := p.Bucket.Parse(); err != nil {
+		return humane.Wrap(err, "Invalid bucket configuration", err.Advice()...)
+	}
+
+	if err := p.Proxy.Parse(); err != nil {
+		return humane.Wrap(err, "Invalid proxy configuration", err.Advice()...)
 	}
 
 	return nil
@@ -30,7 +47,6 @@ func (p *Page) Validate() humane.Error {
 type BucketConfig struct {
 	URL           EnvValue `yaml:"url"`
 	Name          EnvValue `yaml:"name"`
-	Page          EnvValue `yaml:"page"`
 	ApplicationID EnvValue `yaml:"applicationId"`
 	Secret        EnvValue `yaml:"secret"`
 }
@@ -46,10 +62,6 @@ func (bc *BucketConfig) Validate() humane.Error {
 
 	if bc.Name == "" {
 		return humane.New("No S3 Bucket Name is provided", "Make sure to provide a S3 bucket Name in pages[].bucket.name")
-	}
-
-	if bc.Page == "" {
-		return humane.New("No Page Name is provided", "Make sure to provide the name of the web-page in the S3 bucket in pages[].bucket.page")
 	}
 
 	if bc.ApplicationID == "" {
@@ -72,10 +84,6 @@ func (bc *BucketConfig) Parse() humane.Error {
 		return err
 	}
 
-	if err := bc.Page.Parse(); err != nil {
-		return err
-	}
-
 	if err := bc.ApplicationID.Parse(); err != nil {
 		return err
 	}
@@ -87,13 +95,59 @@ func (bc *BucketConfig) Parse() humane.Error {
 	return nil
 }
 
+type ProxyConfig struct {
+	URL        EnvValue `yaml:"url"`
+	Path       EnvValue `yaml:"path"`
+	SearchPath []string `yaml:"searchPath"`
+}
+
+func (pc *ProxyConfig) Validate() humane.Error {
+	if pc.URL == "" {
+		return humane.New("No Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
+	}
+
+	if _, err := url.Parse(pc.URL.String()); err != nil {
+		return humane.New("No Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
+	}
+
+	if pc.Path == "" {
+		return humane.New("No Reverse-Proxy path is provided", "Make sure to provide a URL path for which the reverse proxy is created in in pages[].proxy.path")
+	}
+
+	if len(pc.SearchPath) == 0 {
+		return humane.New("No search paths specified", "Make sure to provide a list of search paths in pages[].proxy.searchPath")
+	}
+
+	return nil
+}
+
+func (pc *ProxyConfig) Parse() humane.Error {
+
+	if err := pc.URL.Parse(); err != nil {
+		return err
+	}
+
+	if err := pc.Path.Parse(); err != nil {
+		return err
+	}
+
+	if len(pc.SearchPath) == 0 {
+		pc.SearchPath = []string{
+			"/index.html",
+			"/index.htm",
+		}
+	}
+
+	return nil
+}
+
 type SubDomain struct {
 	Pattern string `yaml:"pattern"`
 	History int    `yaml:"history"`
 }
 
-func ParsePages() ([]Page, humane.Error) {
-	pages := make([]Page, 0)
+func ParsePages() ([]*Page, humane.Error) {
+	pages := make([]*Page, 0)
 
 	err := viper.UnmarshalKey("pages", &pages)
 	if err != nil {
@@ -102,7 +156,7 @@ func ParsePages() ([]Page, humane.Error) {
 
 	// Parse each page configuration
 	for i, page := range pages {
-		if err := page.Bucket.Parse(); err != nil {
+		if err := page.Parse(); err != nil {
 			return nil, humane.Wrap(err, "Invalid page configuration",
 				fmt.Sprintf("Ensure Page %d (%s) configuration is valid: %s", i, page.Domain, err.Advice()))
 		}

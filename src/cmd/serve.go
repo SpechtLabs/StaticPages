@@ -63,15 +63,13 @@ var serveCmd = &cobra.Command{
 				zapLog.Sugar().Errorw("Unable to parse pages", "error", err.Error(), "advice", err.Advice(), "cause", err.Cause())
 			}
 
-			for _, page := range pages {
-				proxy := proxy.NewProxy(zapLog, page)
+			proxy := proxy.NewProxy(zapLog, pages)
 
-				go func() {
-					if err := proxy.Serve(fmt.Sprintf("%s:%d", hostname, port)); err != nil {
-						zapLog.Sugar().Errorw("Unable to serve page", "domain", page.Domain, "error", err.Error(), "advice", err.Advice(), "cause", err.Cause())
-					}
-				}()
-			}
+			go func() {
+				if err := proxy.Serve(fmt.Sprintf("%s:%d", hostname, port)); err != nil {
+					zapLog.Sugar().Errorw("Unable to serve static pages reverse proxy", "error", err.Error(), "advice", err.Advice(), "cause", err.Cause())
+				}
+			}()
 		}
 
 		c := make(chan os.Signal, 1)

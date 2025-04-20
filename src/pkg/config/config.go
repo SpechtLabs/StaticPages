@@ -12,7 +12,7 @@ type Page struct {
 	Bucket     BucketConfig         `yaml:"bucket"`
 	Proxy      ProxyConfig          `yaml:"proxy"`
 	History    int                  `yaml:"history"`
-	Allowed    []string             `yaml:"allowed"`
+	Repository string               `yaml:"repository"`
 	SubDomains map[string]SubDomain `yaml:"subDomains"`
 }
 

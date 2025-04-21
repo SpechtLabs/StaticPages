@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/SpechtLabs/StaticPages/pkg/config"
 	"github.com/golang/groupcache/singleflight"
-	"github.com/sierrasoftworks/humane-errors-go"
+	humane "github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spf13/viper"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"

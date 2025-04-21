@@ -29,13 +29,19 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
-    name: Test & Code Quality
+  quality:
+    name: Code Quality
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        check: [unit-tests, format-check, lint, go-mod-tidy, static-analysis]
+        check:
+          - name: GolangCI Lint
+            action: golangci/golangci-lint-action@v3
+          - name: StaticCheck
+            action: dominikh/staticcheck-action@v1
+
+            format-check, lint, go-mod-tidy, static-analysis]
 
     steps:
       # Checkout code
@@ -49,6 +55,12 @@ jobs:
           go-version-file: "src/go.mod"
           cache: true
           cache-dependency-path: "**/*.sum"
+
+      - name: matrix.check.name
+        uses: matrix.check.action
+        working-directory: src/
+        with:
+          version: latest
 
       # Define checks
       - name: Run ${{ matrix.check }}
@@ -68,31 +80,73 @@ jobs:
                 exit 1
               fi
               ;;
-            lint)
-              echo "Running golangci-lint..."
-              curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
-              golangci-lint run ./...
-              ;;
             go-mod-tidy)
               echo "Checking go.mod and go.sum..."
               go mod tidy
               git diff --exit-code go.mod go.sum
-              ;;
-            static-analysis)
-              echo "Running staticcheck..."
-              go install honnef.co/go/tools/cmd/staticcheck@latest
-              staticcheck ./...
               ;;
             *)
               echo "Unknown check type: ${{ matrix.check }}"
               exit 1
               ;;
           esac
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Set up Go environment
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "src/go.mod"
+          cache: true
+          cache-dependency-path: "**/*.sum"
+
+      - name: is go.mod tidy?
+        working-directory: "src/"
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+          ;;
+
+      - name: Run format-check
+        working-directory: "src/"
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "The following files are not formatted according to gofmt:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Set up Go environment
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "src/go.mod"
+          cache: true
+          cache-dependency-path: "**/*.sum"
+
+      - name: Run tests
+        working-directory: "src/"
+        run: go test ./... -race -coverprofile=coverage.out
 
   goreleaser:
     runs-on: ubuntu-latest
     needs:
       - test
+      - quality
+      - style
 
     steps:
       - name: Checkout

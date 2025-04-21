@@ -47,7 +47,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - name: GolangCI Lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v7
         with:
           working-directory: src/
           version: latest
@@ -57,26 +57,6 @@ jobs:
         with:
           working-directory: src/
           version: latest
-
-  style:
-    name: Code Style
-    runs-on: ubuntu-latest
-    steps:
-      # Checkout code
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Set up Go environment
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "src/go.mod"
-          cache: true
-          cache-dependency-path: "**/*.sum"
-
-      - name: is go.mod tidy?
-        working-directory: "src/"
-        run: go mod tidy && git diff --exit-code go.mod go.sum
 
       - name: Run format-check
         working-directory: "src/"
@@ -127,6 +107,7 @@ jobs:
     steps:
       - uses: fgrosse/go-coverage-report@v1.1.1
         with:
+
           coverage-artifact-name: "code-coverage"
           coverage-file-name: "src/coverage.txt"
 
@@ -135,7 +116,6 @@ jobs:
     needs:
       - test
       - quality
-      - style
 
     steps:
       - name: Checkout

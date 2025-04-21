@@ -59,6 +59,7 @@ jobs:
           version: latest
 
   style:
+    name: Code Style
     runs-on: ubuntu-latest
     steps:
       # Checkout code
@@ -75,10 +76,7 @@ jobs:
 
       - name: is go.mod tidy?
         working-directory: "src/"
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum
-          ;;
+        run: go mod tidy && git diff --exit-code go.mod go.sum
 
       - name: Run format-check
         working-directory: "src/"
@@ -91,6 +89,7 @@ jobs:
           fi
 
   test:
+    name: Unit Tests
     runs-on: ubuntu-latest
     steps:
       # Checkout code

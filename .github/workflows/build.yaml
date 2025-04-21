@@ -41,8 +41,6 @@ jobs:
           - name: StaticCheck
             action: dominikh/staticcheck-action@v1
 
-            format-check, lint, go-mod-tidy, static-analysis]
-
     steps:
       # Checkout code
       - name: Checkout repository
@@ -62,34 +60,6 @@ jobs:
         with:
           version: latest
 
-      # Define checks
-      - name: Run ${{ matrix.check }}
-        working-directory: "src/"
-        run: |
-          case ${{ matrix.check }} in
-            unit-tests)
-              echo "Running unit tests..."
-              go test ./... -race -coverprofile=coverage.out
-              ;;
-            format-check)
-              echo "Checking code formatting with gofmt..."
-              UNFORMATTED=$(gofmt -l .)
-              if [ -n "$UNFORMATTED" ]; then
-                echo "The following files are not formatted according to gofmt:"
-                echo "$UNFORMATTED"
-                exit 1
-              fi
-              ;;
-            go-mod-tidy)
-              echo "Checking go.mod and go.sum..."
-              go mod tidy
-              git diff --exit-code go.mod go.sum
-              ;;
-            *)
-              echo "Unknown check type: ${{ matrix.check }}"
-              exit 1
-              ;;
-          esac
   style:
     runs-on: ubuntu-latest
     steps:

@@ -54,8 +54,8 @@ jobs:
           cache: true
           cache-dependency-path: "**/*.sum"
 
-      - name: matrix.check.name
-        uses: matrix.check.action
+      - name: ${{ matrix.check.name }}
+        uses: ${{ matrix.check.action }}
         working-directory: src/
         with:
           version: latest

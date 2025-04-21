@@ -42,6 +42,7 @@ jobs:
 
       # Define checks
       - name: Run ${{ matrix.check }}
+        working-directory: "src/"
         run: |
           case ${{ matrix.check }} in
             unit-tests)

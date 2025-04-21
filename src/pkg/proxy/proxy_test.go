@@ -215,7 +215,7 @@ func setupMockServer(test *testProxyServer) *httptest.Server {
 
 		if status == http.StatusOK {
 			// Normal GET request should return success
-			w.Write([]byte("Hello from backend"))
+			_, _ = w.Write([]byte("Hello from backend"))
 		}
 	}))
 	return backend

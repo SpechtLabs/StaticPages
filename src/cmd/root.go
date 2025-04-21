@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
-	"github.com/sierrasoftworks/humane-errors-go"
+	humane "github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
@@ -135,7 +135,7 @@ func viperConfigChange(undo func(), zapLog *otelzap.Logger) {
 		otelzap.L().Sugar().Infow("Config file change detected. Reloading.", "filename", e.Name)
 
 		// refresh logger
-		zapLog.Sync()
+		_ = zapLog.Sync()
 		undo()
 		undo, zapLog = initTelemetry()
 

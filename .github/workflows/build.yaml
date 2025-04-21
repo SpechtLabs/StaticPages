@@ -32,14 +32,6 @@ jobs:
   quality:
     name: Code Quality
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check:
-          - name: GolangCI Lint
-            action: golangci/golangci-lint-action@v3
-          - name: StaticCheck
-            action: dominikh/staticcheck-action@v1
 
     steps:
       # Checkout code
@@ -54,10 +46,16 @@ jobs:
           cache: true
           cache-dependency-path: "**/*.sum"
 
-      - name: ${{ matrix.check.name }}
-        uses: ${{ matrix.check.action }}
-        working-directory: src/
+      - name: GolangCI Lint
+        uses: golangci/golangci-lint-action@v3
         with:
+          working-directory: src/
+          version: latest
+
+      - name: StaticCheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          working-directory: src/
           version: latest
 
   style:

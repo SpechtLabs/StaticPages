@@ -10,7 +10,7 @@ import (
 type Page struct {
 	Domain     string               `yaml:"domain"`
 	Bucket     BucketConfig         `yaml:"bucket"`
-	Proxy      ProxyConfig          `yaml:"proxy"`
+	Proxy      Proxy                `yaml:"proxy"`
 	History    int                  `yaml:"history"`
 	Repository string               `yaml:"repository"`
 	SubDomains map[string]SubDomain `yaml:"subDomains"`
@@ -95,23 +95,23 @@ func (bc *BucketConfig) Parse() humane.Error {
 	return nil
 }
 
-type ProxyConfig struct {
+type Proxy struct {
 	URL        EnvValue `yaml:"url"`
 	Path       EnvValue `yaml:"path"`
 	SearchPath []string `yaml:"searchPath"`
 }
 
-func (pc *ProxyConfig) Validate() humane.Error {
+func (pc *Proxy) Validate() humane.Error {
 	if pc.URL == "" {
 		return humane.New("No Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
 	}
 
 	if _, err := url.Parse(pc.URL.String()); err != nil {
-		return humane.New("No Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
+		return humane.New("Invalid Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
 	}
 
 	if pc.Path == "" {
-		return humane.New("No Reverse-Proxy path is provided", "Make sure to provide a URL path for which the reverse proxy is created in in pages[].proxy.path")
+		return humane.New("No Reverse-Proxy Path is provided", "Make sure to provide a URL path for which the reverse proxy is created in in pages[].proxy.path")
 	}
 
 	if len(pc.SearchPath) == 0 {
@@ -121,7 +121,7 @@ func (pc *ProxyConfig) Validate() humane.Error {
 	return nil
 }
 
-func (pc *ProxyConfig) Parse() humane.Error {
+func (pc *Proxy) Parse() humane.Error {
 
 	if err := pc.URL.Parse(); err != nil {
 		return err

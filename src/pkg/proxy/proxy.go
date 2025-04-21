@@ -87,7 +87,7 @@ func (p *Proxy) Director(req *http.Request) {
 	targetPath, err := p.lookupPath(req.Context(), page, requestUrl, backendUrl, path.Clean(fmt.Sprintf("/%s/%s", page.Proxy.Path, originalPath)))
 	if err != nil {
 		p.zapLog.Ctx(req.Context()).Error("no valid path found", zap.String("original_path", originalPath), zap.String("target_path", targetPath))
-		return
+		//return
 	}
 
 	req.URL.Scheme = backendUrl.Scheme
@@ -192,11 +192,11 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, url.String()+location, nil)
 	resp, err := client.Do(req)
-	if err != nil {
-		return http.StatusNotFound, err
+	if resp != nil {
+		return resp.StatusCode, err
 	}
 
-	return resp.StatusCode, err
+	return http.StatusNotFound, err
 }
 
 func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost string, backendUrl *url.URL, targetPath string) (string, humane.Error) {

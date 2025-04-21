@@ -155,7 +155,7 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Only allow GET requests
 	if r.Method != http.MethodGet {
-		p.zapLog.Warn("received non-GET request",
+		p.zapLog.Ctx(r.Context()).Warn("received non-GET request",
 			zap.String("method", r.Method),
 			zap.String("path", r.URL.Path),
 		)

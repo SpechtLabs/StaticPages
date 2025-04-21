@@ -19,8 +19,70 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    name: Test & Code Quality
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [unit-tests, format-check, lint, go-mod-tidy, static-analysis]
+
+    steps:
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Set up Go environment
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "src/go.mod"
+          cache: true
+          cache-dependency-path: "**/*.sum"
+
+      # Define checks
+      - name: Run ${{ matrix.check }}
+        run: |
+          case ${{ matrix.check }} in
+            unit-tests)
+              echo "Running unit tests..."
+              go test ./... -race -coverprofile=coverage.out
+              ;;
+            format-check)
+              echo "Checking code formatting with gofmt..."
+              UNFORMATTED=$(gofmt -l .)
+              if [ -n "$UNFORMATTED" ]; then
+                echo "The following files are not formatted according to gofmt:"
+                echo "$UNFORMATTED"
+                exit 1
+              fi
+              ;;
+            lint)
+              echo "Running golangci-lint..."
+              curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+              golangci-lint run ./...
+              ;;
+            go-mod-tidy)
+              echo "Checking go.mod and go.sum..."
+              go mod tidy
+              git diff --exit-code go.mod go.sum
+              ;;
+            static-analysis)
+              echo "Running staticcheck..."
+              go install honnef.co/go/tools/cmd/staticcheck@latest
+              staticcheck ./...
+              ;;
+            *)
+              echo "Unknown check type: ${{ matrix.check }}"
+              exit 1
+              ;;
+          esac  
+
   goreleaser:
     runs-on: ubuntu-latest
+    needs:
+      - test
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

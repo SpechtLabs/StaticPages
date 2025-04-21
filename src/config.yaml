@@ -1,6 +1,12 @@
 server:
   port: 8080
 
+proxy:
+  maxIdleConns: 1000
+  maxIdleConnsPerHost: 500
+  timeout: 30s
+  compression: false
+
 output:
   debug: true
   format: long

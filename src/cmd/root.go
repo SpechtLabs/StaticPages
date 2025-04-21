@@ -92,6 +92,12 @@ func init() {
 	if err != nil {
 		panic(fmt.Errorf("fatal binding flag: %w", err))
 	}
+
+	// Other config defaults
+	viper.SetDefault("proxy.maxIdleConns", 1000)
+	viper.SetDefault("proxy.maxIdleConnsPerHost", 100)
+	viper.SetDefault("proxy.timeout", "90s")
+	viper.SetDefault("proxy.compression", true)
 }
 
 func initConfig() {

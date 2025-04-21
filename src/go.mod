@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/sierrasoftworks/humane-errors-go v0.0.0-20241125132722-d032d7dd359e
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1

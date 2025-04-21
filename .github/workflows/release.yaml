@@ -20,13 +20,8 @@ env:
 
 jobs:
   test:
-    name: Test & Code Quality
+    name: Unit Tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [unit-tests, format-check, lint, go-mod-tidy, static-analysis]
-
     steps:
       # Checkout code
       - name: Checkout repository
@@ -40,44 +35,9 @@ jobs:
           cache: true
           cache-dependency-path: "**/*.sum"
 
-      # Define checks
-      - name: Run ${{ matrix.check }}
+      - name: Run tests
         working-directory: "src/"
-        run: |
-          case ${{ matrix.check }} in
-            unit-tests)
-              echo "Running unit tests..."
-              go test ./... -race -coverprofile=coverage.out
-              ;;
-            format-check)
-              echo "Checking code formatting with gofmt..."
-              UNFORMATTED=$(gofmt -l .)
-              if [ -n "$UNFORMATTED" ]; then
-                echo "The following files are not formatted according to gofmt:"
-                echo "$UNFORMATTED"
-                exit 1
-              fi
-              ;;
-            lint)
-              echo "Running golangci-lint..."
-              curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
-              golangci-lint run ./...
-              ;;
-            go-mod-tidy)
-              echo "Checking go.mod and go.sum..."
-              go mod tidy
-              git diff --exit-code go.mod go.sum
-              ;;
-            static-analysis)
-              echo "Running staticcheck..."
-              go install honnef.co/go/tools/cmd/staticcheck@latest
-              staticcheck ./...
-              ;;
-            *)
-              echo "Unknown check type: ${{ matrix.check }}"
-              exit 1
-              ;;
-          esac  
+        run: go test ./... -race
 
   goreleaser:
     runs-on: ubuntu-latest

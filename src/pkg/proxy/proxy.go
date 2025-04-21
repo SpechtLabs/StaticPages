@@ -119,7 +119,7 @@ func (p *Proxy) ErrorHandler(w http.ResponseWriter, r *http.Request, err error) 
 
 	switch err.Error() {
 	case "context canceled":
-		responseCode = 499 // Nginx' non-standard code for when a client closes the connection
+		responseCode = 499 // Nginx non-standard code for when a client closes the connection
 	}
 
 	p.zapLog.Ctx(r.Context()).Error("proxy error",

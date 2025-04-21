@@ -25,7 +25,7 @@ var serveCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		undo, zapLog := initTelemetry()
-		defer zapLog.Sync()
+		defer func() { _ = zapLog.Sync() }()
 		defer undo()
 
 		if debug {

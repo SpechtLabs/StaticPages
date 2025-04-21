@@ -135,7 +135,7 @@ func viperConfigChange(undo func(), zapLog *otelzap.Logger) {
 		otelzap.L().Sugar().Infow("Config file change detected. Reloading.", "filename", e.Name)
 
 		// refresh logger
-		zapLog.Sync()
+		_ = zapLog.Sync()
 		undo()
 		undo, zapLog = initTelemetry()
 

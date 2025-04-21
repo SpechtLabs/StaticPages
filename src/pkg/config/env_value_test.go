@@ -14,7 +14,7 @@ func TestEnvValueParse(t *testing.T) {
 		os.Clearenv()
 		for _, env := range originalEnv {
 			parts := strings.SplitN(env, "=", 2)
-			os.Setenv(parts[0], parts[1])
+			_ = os.Setenv(parts[0], parts[1])
 		}
 	}()
 
@@ -85,7 +85,7 @@ func TestEnvValueParse(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// Set the environment variable if defined
 			if test.envVariable != "" {
-				os.Setenv(test.envVariable, test.envValue)
+				_ = os.Setenv(test.envVariable, test.envValue)
 			}
 
 			// Create an EnvValue and parse it
@@ -103,7 +103,7 @@ func TestEnvValueParse(t *testing.T) {
 
 			// Cleanup environment variable
 			if test.envVariable != "" {
-				os.Unsetenv(test.envVariable)
+				_ = os.Unsetenv(test.envVariable)
 			}
 		})
 	}

@@ -107,7 +107,7 @@ jobs:
     steps:
       - uses: fgrosse/go-coverage-report@v1.2.0
         with:
-
+          root-package: 'github.com/${{ github.repository }}/src'
           coverage-artifact-name: "code-coverage"
           coverage-file-name: "src/coverage.txt"
 

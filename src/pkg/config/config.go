@@ -15,7 +15,6 @@ func init() {
 	viper.SetDefault("server.host", "")
 
 	viper.SetDefault("output.format", ShortFormat)
-	viper.SetDefault("output.debug", false)
 
 	viper.SetDefault("proxy.maxIdleConns", 1000)
 	viper.SetDefault("proxy.maxIdleConnsPerHost", 100)
@@ -30,7 +29,6 @@ const (
 
 type Output struct {
 	Format Format
-	Debug  bool
 }
 
 type Server struct {

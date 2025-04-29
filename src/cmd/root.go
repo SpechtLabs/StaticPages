@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"github.com/SpechtLabs/StaticPages/pkg/config"
-	"github.com/gin-gonic/gin"
 	humane "github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -28,7 +27,6 @@ var (
 	configFileName string
 	configuration  config.StaticPagesConfig
 
-	zapLog        *otelzap.SugaredLogger
 	undoFinalizer func()
 )
 
@@ -85,41 +83,6 @@ func initConfig() {
 	viper.AutomaticEnv()
 }
 
-func initTelemetry() (func(), *otelzap.SugaredLogger) {
-	var err error
-
-	// Initialize Logging
-	var zapLog *zap.Logger
-	if configuration.Output.Debug {
-		zapLog, err = zap.NewDevelopment()
-		gin.SetMode(gin.DebugMode)
-	} else {
-		zapLog, err = zap.NewProduction()
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	if err != nil {
-		fmt.Printf("failed to initialize logger: %w", err)
-		os.Exit(1)
-	}
-
-	otelZap := otelzap.New(zapLog,
-		otelzap.WithCaller(true),
-		otelzap.WithMinLevel(zap.InfoLevel),
-		otelzap.WithErrorStatusLevel(zap.ErrorLevel),
-		otelzap.WithStackTrace(false),
-	)
-
-	undo := otelzap.ReplaceGlobals(otelZap)
-
-	finalizer := func() {
-		_ = otelZap.Sync()
-		undo()
-	}
-
-	return finalizer, otelZap.Sugar()
-}
-
 func readConfig() {
 	// Find and read the config file
 	if err := viper.ReadInConfig(); err != nil {
@@ -148,15 +111,13 @@ var rootCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		readConfig()
 
-		undoFinalizer, zapLog = initTelemetry()
-
-		if configuration.Output.Debug {
+		if otelzap.L().Core().Enabled(zap.DebugLevel) {
 			file, err := os.ReadFile(viper.GetViper().ConfigFileUsed())
 			if err != nil {
 				herr := humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
 				panic(herr)
 			}
-			zapLog.Debugw("Config file used", zap.String("config_file", string(file)))
+			otelzap.L().Sugar().Debugw("Config file used", zap.String("config_file", string(file)))
 		}
 
 		if !serveApi && !serveProxy {

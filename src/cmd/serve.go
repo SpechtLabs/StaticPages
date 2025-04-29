@@ -21,7 +21,7 @@ func init() {
 	serveCmd.Flags().BoolVar(&serveApi, "api", false, "Serve API?")
 	serveCmd.Flags().BoolVar(&serveProxy, "proxy", false, "Serve Proxy?")
 
-	rootCmd.AddCommand(serveCmd)
+	RootCmd.AddCommand(serveCmd)
 }
 
 var serveCmd = &cobra.Command{

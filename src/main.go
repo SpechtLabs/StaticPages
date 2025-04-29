@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/SpechtLabs/StaticPages/cmd"
+	"github.com/spf13/cobra"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
@@ -22,10 +23,18 @@ import (
 )
 
 var (
-	version string
-	commit  string
-	date    string
-	builtBy string
+	Version    string
+	Commit     string
+	Date       string
+	BuiltBy    string
+	versionCmd = &cobra.Command{
+		Use:   "version",
+		Short: "Shows version information",
+		Args:  cobra.ExactArgs(0),
+		Run: func(cmd *cobra.Command, args []string) {
+			printVersion()
+		},
+	}
 )
 
 func main() {
@@ -37,7 +46,19 @@ func main() {
 		loggerShutdown()
 	}()
 
-	cmd.Execute(version, commit, date, builtBy)
+	cmd.RootCmd.AddCommand(versionCmd)
+	err := cmd.RootCmd.Execute()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func printVersion() {
+	fmt.Printf("Version: %s\n", Version)
+	fmt.Printf("Date:    %s\n", Date)
+	fmt.Printf("Commit:  %s\n", Commit)
+	fmt.Printf("BuiltBy: %s\n", BuiltBy)
 }
 
 func initTracing() func() {
@@ -228,7 +249,7 @@ func newOtelResources() *resource.Resource {
 	res, err := resource.Merge(resource.Default(),
 		resource.NewWithAttributes(semconv.SchemaURL,
 			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(version),
+			semconv.ServiceVersion(Version),
 		))
 
 	if err != nil {

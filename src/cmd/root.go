@@ -12,18 +12,6 @@ import (
 )
 
 var (
-	// Version represents the Version of the StaticPages binary, should be set via ldflags -X
-	Version string
-
-	// Date represents the Date of when the StaticPages binary was build, should be set via ldflags -X
-	Date string
-
-	// Commit represents the Commit-hash from which StaticPages binary was build, should be set via ldflags -X
-	Commit string
-
-	// BuiltBy represents who build the binary
-	BuiltBy string
-
 	configFileName string
 	configuration  config.StaticPagesConfig
 
@@ -33,32 +21,32 @@ var (
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVarP(&configFileName, "config", "c", "", "Name of the config file")
+	RootCmd.PersistentFlags().StringVarP(&configFileName, "config", "c", "", "Name of the config file")
 
-	rootCmd.PersistentFlags().IntP("port", "p", 50051, "Port of the Server")
+	RootCmd.PersistentFlags().IntP("port", "p", 50051, "Port of the Server")
 	viper.SetDefault("server.port", 8099)
-	err := viper.BindPFlag("server.port", rootCmd.PersistentFlags().Lookup("port"))
+	err := viper.BindPFlag("server.port", RootCmd.PersistentFlags().Lookup("port"))
 	if err != nil {
 		panic(fmt.Errorf("fatal binding flag: %w", err))
 	}
 
-	rootCmd.PersistentFlags().StringP("server", "s", "", "")
+	RootCmd.PersistentFlags().StringP("server", "s", "", "")
 	viper.SetDefault("server.host", "")
-	err = viper.BindPFlag("server.host", rootCmd.PersistentFlags().Lookup("server"))
+	err = viper.BindPFlag("server.host", RootCmd.PersistentFlags().Lookup("server"))
 	if err != nil {
 		panic(fmt.Errorf("fatal binding flag: %w", err))
 	}
 
-	rootCmd.PersistentFlags().BoolP("debug", "d", false, "enable debug logging")
+	RootCmd.PersistentFlags().BoolP("debug", "d", false, "enable debug logging")
 	viper.SetDefault("output.debug", false)
-	err = viper.BindPFlag("output.debug", rootCmd.PersistentFlags().Lookup("debug"))
+	err = viper.BindPFlag("output.debug", RootCmd.PersistentFlags().Lookup("debug"))
 	if err != nil {
 		panic(fmt.Errorf("fatal binding flag: %w", err))
 	}
 
-	rootCmd.PersistentFlags().StringP("out", "o", string(config.ShortFormat), "Configure your output format (short, long)")
+	RootCmd.PersistentFlags().StringP("out", "o", string(config.ShortFormat), "Configure your output format (short, long)")
 	viper.SetDefault("output.format", "short")
-	err = viper.BindPFlag("output.format", rootCmd.PersistentFlags().Lookup("out"))
+	err = viper.BindPFlag("output.format", RootCmd.PersistentFlags().Lookup("out"))
 	if err != nil {
 		panic(fmt.Errorf("fatal binding flag: %w", err))
 	}
@@ -104,8 +92,8 @@ func readConfig() {
 	}
 }
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
+// RootCmd represents the base command when called without any subcommands
+var RootCmd = &cobra.Command{
 	Use:   "staticpages",
 	Short: "A simple Static Pages Server for hosting your own static pages.",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -127,19 +115,4 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute(version, commit, date, builtBy string) {
-	Version = version
-	Date = date
-	Commit = commit
-	BuiltBy = builtBy
-
-	err := rootCmd.Execute()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 }

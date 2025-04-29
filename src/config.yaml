@@ -57,6 +57,7 @@ pages:
     proxy:
       url: https://f003.backblazeb2.com
       path: file/cedi-testing/gold-specht
+      notFound: 404.html
 
     # specify a retention period (how many commit websites to keep)
     history: 10

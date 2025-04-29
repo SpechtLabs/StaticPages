@@ -97,6 +97,7 @@ type PageProxy struct {
 	URL        EnvValue `yaml:"url"`
 	Path       EnvValue `yaml:"path"`
 	SearchPath []string `yaml:"searchPath"`
+	NotFound   string   `yaml:"notFound"`
 }
 
 func (pc *PageProxy) Validate() humane.Error {
@@ -134,6 +135,10 @@ func (pc *PageProxy) Parse() humane.Error {
 			"/index.html",
 			"/index.htm",
 		}
+	}
+
+	if pc.NotFound == "" {
+		pc.NotFound = "404.html"
 	}
 
 	return nil

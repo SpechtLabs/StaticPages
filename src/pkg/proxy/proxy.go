@@ -18,28 +18,34 @@ import (
 	"time"
 )
 
+// Proxy represents a reverse proxy server with logging, page management, and request handling capabilities.
 type Proxy struct {
-	zapLog *otelzap.Logger
-	pages  map[string]*config.Page
-	proxy  *httputil.ReverseProxy
-	group  singleflight.Group
+	zapLog   *otelzap.SugaredLogger
+	pagesMap map[string]*config.Page
+	conf     config.StaticPagesConfig
+	proxy    *httputil.ReverseProxy
+	group    singleflight.Group
+	server   *http.Server
 }
 
-func NewProxy(zapLog *otelzap.Logger, pages []*config.Page) *Proxy {
+// NewProxy initializes and returns a new Proxy instance configured with the provided logger and page definitions.
+func NewProxy(zapLog *otelzap.SugaredLogger, conf config.StaticPagesConfig) *Proxy {
 	// construct a map for easier lookup in the director
 	pagesMap := make(map[string]*config.Page)
-	for _, page := range pages {
+	for _, page := range conf.Pages {
 		if pagesMap[page.Domain] != nil {
-			zapLog.Warn("duplicate page domain", zap.String("domain", page.Domain))
+			zapLog.Warnw("duplicate page domain", zap.String("domain", page.Domain))
 		}
 
 		pagesMap[page.Domain] = page
 	}
 
 	p := &Proxy{
-		zapLog: zapLog,
-		pages:  pagesMap,
-		proxy:  nil,
+		zapLog:   zapLog,
+		pagesMap: pagesMap,
+		proxy:    nil,
+		conf:     conf,
+		server:   nil,
 	}
 
 	p.proxy = &httputil.ReverseProxy{
@@ -59,9 +65,12 @@ func NewProxy(zapLog *otelzap.Logger, pages []*config.Page) *Proxy {
 	return p
 }
 
+// Director modifies the incoming HTTP request to route it to the appropriate backend server based on the request host and path.
 func (p *Proxy) Director(req *http.Request) {
 	if req.Context().Err() != nil {
-		p.zapLog.Ctx(req.Context()).Warn("request context canceled", zap.String("url", req.URL.String()), zap.String("path", req.URL.Path))
+		p.zapLog.Ctx(req.Context()).Warnw("request context canceled",
+			zap.String("url", req.URL.String()),
+			zap.String("path", req.URL.Path))
 		return
 	}
 
@@ -71,22 +80,27 @@ func (p *Proxy) Director(req *http.Request) {
 		requestUrl = strings.Split(requestUrl, ":")[0]
 	}
 
-	page, ok := p.pages[requestUrl]
+	page, ok := p.pagesMap[requestUrl]
 	if !ok {
-		p.zapLog.Ctx(req.Context()).Error("no page found for requestUrl", zap.String("requestUrl", requestUrl))
+		p.zapLog.Ctx(req.Context()).Errorw("no page found for requestUrl",
+			zap.String("requestUrl", requestUrl))
 		return
 	}
 
 	backendUrl, err := url.Parse(page.Proxy.URL.String())
 	if err != nil {
-		p.zapLog.Ctx(req.Context()).Error("invalid target URL", zap.Error(err), zap.String("url", page.Proxy.URL.String()))
+		p.zapLog.Ctx(req.Context()).Errorw("invalid target URL",
+			zap.Error(err),
+			zap.String("url", page.Proxy.URL.String()))
 		return
 	}
 
 	// Find the actual html document we are looking for
 	targetPath, err := p.lookupPath(req.Context(), page, requestUrl, backendUrl, path.Clean(fmt.Sprintf("/%s/%s", page.Proxy.Path, originalPath)))
 	if err != nil {
-		p.zapLog.Ctx(req.Context()).Error("no valid path found", zap.String("original_path", originalPath), zap.String("target_path", targetPath))
+		p.zapLog.Ctx(req.Context()).Errorw("no valid path found",
+			zap.String("original_path", originalPath),
+			zap.String("target_path", targetPath))
 		//return
 	}
 
@@ -106,14 +120,14 @@ func (p *Proxy) Director(req *http.Request) {
 	req.Header.Set("X-Origin-Host", backendUrl.Host)
 
 	// Log the request transformation
-	p.zapLog.Ctx(req.Context()).Debug("transforming request",
+	p.zapLog.Ctx(req.Context()).Debugw("transforming request",
 		zap.String("original_path", originalPath),
 		zap.String("target_path", targetPath),
-		zap.String("target_server", backendUrl.String()),
-		zap.String("target_url", req.URL.String()),
-	)
+		zap.String("backend_host", backendUrl.String()),
+		zap.String("backend_url", req.URL.String()))
 }
 
+// ErrorHandler handles errors during request processing by logging the error and responding with the appropriate HTTP status code.
 func (p *Proxy) ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	responseCode := http.StatusBadGateway
 
@@ -122,43 +136,41 @@ func (p *Proxy) ErrorHandler(w http.ResponseWriter, r *http.Request, err error) 
 		responseCode = 499 // Nginx non-standard code for when a client closes the connection
 	}
 
-	p.zapLog.Ctx(r.Context()).Error("proxy error",
+	p.zapLog.Ctx(r.Context()).Errorw("proxy error",
 		zap.String("error", err.Error()),
 		zap.String("url", r.URL.String()),
-		zap.Int("status", responseCode),
-	)
+		zap.Int("status", responseCode))
 
 	http.Error(w, err.Error(), responseCode)
 }
 
+// ModifyResponse inspects and logs HTTP responses with a status code of 300 or higher, returning nil or an error.
 func (p *Proxy) ModifyResponse(r *http.Response) error {
 	if r.StatusCode >= 300 {
-		if p.zapLog.Core().Enabled(zap.DebugLevel) {
+		if p.zapLog.Desugar().Core().Enabled(zap.DebugLevel) {
 			dump, _ := httputil.DumpResponse(r, true)
 
-			p.zapLog.Ctx(r.Request.Context()).Debug("received response",
+			p.zapLog.Ctx(r.Request.Context()).Debugw("received response",
 				zap.Int("status", r.StatusCode),
 				zap.String("url", r.Request.URL.String()),
-				zap.ByteString("url", dump),
-			)
+				zap.ByteString("url", dump))
 		} else {
-			p.zapLog.Ctx(r.Request.Context()).Info("received response",
+			p.zapLog.Ctx(r.Request.Context()).Infow("received response",
 				zap.Int("status", r.StatusCode),
-				zap.String("url", r.Request.URL.String()),
-			)
+				zap.String("url", r.Request.URL.String()))
 		}
 	}
 
 	return nil
 }
 
+// ServeHTTP handles incoming HTTP requests and proxies them to the configured backend, allowing only GET requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Only allow GET requests
 	if r.Method != http.MethodGet {
-		p.zapLog.Ctx(r.Context()).Warn("received non-GET request",
+		p.zapLog.Ctx(r.Context()).Warnw("received non-GET request",
 			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-		)
+			zap.String("path", r.URL.Path))
 
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -167,18 +179,51 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.proxy.ServeHTTP(w, r)
 }
 
-func (p *Proxy) Serve(addr string) humane.Error {
-	p.zapLog.Info("starting reverse proxy",
-		zap.String("addr", addr),
-	)
+// ServeAsync starts the reverse proxy server on the specified address and logs the startup message.
+// It runs the server in a separate goroutine and handles failure to start by logging a fatal error.
+// It Panics when the Proxy Server could not start
+func (p *Proxy) ServeAsync(addr string) {
+	go func() {
+		if err := p.Serve(addr); err != nil {
+			p.zapLog.Fatalw("Unable to start proxy",
+				zap.String("error", err.Error()),
+				zap.Strings("advice", err.Advice()),
+				zap.String("cause", err.Cause().Error()))
+		}
+	}()
+}
 
-	server := &http.Server{
+// Serve starts the reverse proxy server on the specified address and logs its startup state.
+// It returns a humane.Error if the server fails to start.
+func (p *Proxy) Serve(addr string) humane.Error {
+	p.zapLog.Infow("starting reverse proxy",
+		zap.String("addr", addr))
+
+	p.server = &http.Server{
 		Addr:    addr,
 		Handler: p,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		return humane.Wrap(err, "failed to start proxy")
+	if err := p.server.ListenAndServe(); err != nil {
+		return humane.Wrap(err, "Unable to start proxy", "Make sure the proxy is not already running and try again.")
+	}
+
+	return nil
+}
+
+// Shutdown gracefully stops the proxy server if it is running, releasing any resources and handling in-progress requests.
+// It returns a humane.Error if the server fails to stop.
+func (p *Proxy) Shutdown() humane.Error {
+	if p.server == nil {
+		return humane.New("Unable to shutdown proxy. It is not running.", "Start Proxy first before attempting to stop it")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	p.zapLog.Info("shutting down proxy")
+	if err := p.server.Shutdown(ctx); err != nil {
+		return humane.Wrap(err, "Unable to shutdown proxy", "Make sure the proxy is running and try again.")
 	}
 
 	return nil

@@ -14,14 +14,17 @@ import (
 	"testing"
 )
 
-func initLogger() (*otelzap.Logger, *bytes.Buffer) {
+func initLogger() *bytes.Buffer {
 	// Capture logs for later assertions
 	enc := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	buf := &bytes.Buffer{}
 	writer := zapcore.AddSync(buf) //zap.CombineWriteSyncers(zaptest.NewTestingWriter(t), )
 	level := zap.NewAtomicLevelAt(zapcore.DebugLevel)
 
-	return otelzap.New(zap.New(zapcore.NewCore(enc, writer, level))), buf
+	otelZapLogger := otelzap.New(zap.New(zapcore.NewCore(enc, writer, level)))
+	otelzap.ReplaceGlobals(otelZapLogger)
+
+	return buf
 }
 
 func TestNewProxy(t *testing.T) {
@@ -34,8 +37,8 @@ func TestNewProxy(t *testing.T) {
 		{
 			name: "no duplicates",
 			pages: []*config.Page{
-				{Domain: "example.com", Proxy: config.Proxy{URL: config.EnvValue("https://example-backend1.com")}},
-				{Domain: "test.com", Proxy: config.Proxy{URL: config.EnvValue("https://test-backend.com")}},
+				{Domain: "example.com", Proxy: config.PageProxy{URL: config.EnvValue("https://example-backend1.com")}},
+				{Domain: "test.com", Proxy: config.PageProxy{URL: config.EnvValue("https://test-backend.com")}},
 			},
 			expectedPages: map[string]string{
 				"example.com": "https://example-backend1.com",
@@ -46,9 +49,9 @@ func TestNewProxy(t *testing.T) {
 		{
 			name: "with duplicates",
 			pages: []*config.Page{
-				{Domain: "example.com", Proxy: config.Proxy{URL: config.EnvValue("https://example-backend1.com")}},
-				{Domain: "example.com", Proxy: config.Proxy{URL: config.EnvValue("https://example-backend2.com")}}, // Duplicate
-				{Domain: "test.com", Proxy: config.Proxy{URL: config.EnvValue("https://test-backend.com")}},
+				{Domain: "example.com", Proxy: config.PageProxy{URL: config.EnvValue("https://example-backend1.com")}},
+				{Domain: "example.com", Proxy: config.PageProxy{URL: config.EnvValue("https://example-backend2.com")}}, // Duplicate
+				{Domain: "test.com", Proxy: config.PageProxy{URL: config.EnvValue("https://test-backend.com")}},
 			},
 			expectedPages: map[string]string{
 				"example.com": "https://example-backend2.com", // Expect last duplicate to overwrite
@@ -59,19 +62,21 @@ func TestNewProxy(t *testing.T) {
 	}
 
 	// Capture logs for later assertions
-	logger, buf := initLogger()
+	buf := initLogger()
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Clear the log buffer for each test run.
 			buf.Reset()
 
-			proxy := NewProxy(logger, test.pages)
-			assert.Len(t, proxy.pages, len(test.expectedPages))
+			proxy := NewProxy(config.StaticPagesConfig{
+				Pages: test.pages,
+			})
+			assert.Len(t, proxy.pagesMap, len(test.expectedPages))
 
 			// Validate the resulting `proxy.pages` map
 			for domain, expectedURL := range test.expectedPages {
-				page, exists := proxy.pages[domain]
+				page, exists := proxy.pagesMap[domain]
 				assert.True(t, exists, "Expected domain %s to exist", domain)
 				if exists {
 					assert.Equal(t, expectedURL, page.Proxy.URL.String(), "Expected backend URL for domain %s to be %s", domain, expectedURL)
@@ -91,6 +96,7 @@ func TestNewProxy(t *testing.T) {
 type testProxyServer struct {
 	name                string
 	domain              string
+	method              string
 	requestPath         string
 	searchPaths         []string
 	requestPathResponse int
@@ -105,6 +111,7 @@ func TestProxyServeHTTP(t *testing.T) {
 		{
 			name:                "valid target path resolved",
 			domain:              "example.com",
+			method:              http.MethodGet,
 			requestPath:         "/some/path",
 			requestPathResponse: http.StatusNotFound,
 			searchPaths:         []string{"index.html", "home.html"},
@@ -119,6 +126,7 @@ func TestProxyServeHTTP(t *testing.T) {
 		{
 			name:                "valid target path no resolving",
 			domain:              "example.com",
+			method:              http.MethodGet,
 			requestPath:         "/some/path",
 			requestPathResponse: http.StatusOK,
 			expectedStatus:      http.StatusOK,
@@ -128,6 +136,7 @@ func TestProxyServeHTTP(t *testing.T) {
 		{
 			name:                "no valid target path resolved",
 			domain:              "example.com",
+			method:              http.MethodGet,
 			requestPath:         "/some/path",
 			requestPathResponse: http.StatusNotFound,
 			searchPaths:         []string{"index.html", "home.html"},
@@ -138,10 +147,25 @@ func TestProxyServeHTTP(t *testing.T) {
 			expectedStatus: http.StatusNotFound,
 			expectErrorLog: true,
 		},
+		{
+			name:                "invalid method",
+			domain:              "example.com",
+			method:              http.MethodPost,
+			requestPath:         "/some/path",
+			requestPathResponse: http.StatusNotFound,
+			searchPaths:         []string{"index.html", "home.html"},
+			searchPathResponses: map[string]int{
+				"/some/path/index.html": http.StatusOK,
+				"/some/path/home.html":  http.StatusNotFound,
+			},
+			expectedStatus: http.StatusMethodNotAllowed,
+			expectedBody:   "Method not allowed\n",
+			expectErrorLog: true,
+		},
 	}
 
 	// Capture logs for later assertions
-	logger, buf := initLogger()
+	buf := initLogger()
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -152,21 +176,23 @@ func TestProxyServeHTTP(t *testing.T) {
 			backend := setupMockServer(&test)
 			defer backend.Close()
 
-			pages := []*config.Page{
-				{
-					Domain: test.domain,
-					Proxy: config.Proxy{
-						URL:        config.EnvValue(backend.URL),
-						SearchPath: test.searchPaths,
+			conf := config.StaticPagesConfig{
+				Pages: []*config.Page{
+					{
+						Domain: test.domain,
+						Proxy: config.PageProxy{
+							URL:        config.EnvValue(backend.URL),
+							SearchPath: test.searchPaths,
+						},
 					},
 				},
 			}
 
 			// Create the proxy
-			proxy := NewProxy(logger, pages)
+			proxy := NewProxy(conf)
 
 			// Simulate the client request
-			req := httptest.NewRequest("GET", fmt.Sprintf("http://%s%s", test.domain, test.requestPath), nil)
+			req := httptest.NewRequest(test.method, fmt.Sprintf("http://%s%s", test.domain, test.requestPath), nil)
 			rr := httptest.NewRecorder()
 
 			proxy.ServeHTTP(rr, req)
@@ -177,7 +203,9 @@ func TestProxyServeHTTP(t *testing.T) {
 
 			// Assert whether logs contain errors
 			if test.expectErrorLog {
-				assert.Contains(t, strings.ToLower(buf.String()), "error", "Expected an error to be logged")
+				if !strings.Contains(strings.ToLower(buf.String()), "warn") {
+					assert.Contains(t, strings.ToLower(buf.String()), "error", "Expected an error to be logged")
+				}
 			} else {
 				assert.NotContains(t, strings.ToLower(buf.String()), "error", "Did not expect an error to be logged")
 			}

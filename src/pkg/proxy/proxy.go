@@ -102,7 +102,7 @@ func (p *Proxy) Director(req *http.Request) {
 		errMessage := "no page found"
 
 		otelzap.L().Sugar().Ctx(ctx).Errorw(errMessage, zap.String("requestUrl", requestUrl))
-		span.RecordError(fmt.Errorf(errMessage), trace.WithAttributes(attribute.String("requestUrl", requestUrl)))
+		span.RecordError(fmt.Errorf("%s", errMessage), trace.WithAttributes(attribute.String("requestUrl", requestUrl)))
 		span.SetStatus(codes.Error, errMessage)
 		return
 	}
@@ -113,7 +113,7 @@ func (p *Proxy) Director(req *http.Request) {
 
 		otelzap.L().Sugar().Ctx(ctx).Errorw(errMessage, zap.String("url", page.Proxy.URL.String()), zap.Error(err))
 
-		span.RecordError(fmt.Errorf(errMessage), trace.WithAttributes(attribute.String("url", page.Proxy.URL.String()), attribute.String("error", err.Error())))
+		span.RecordError(fmt.Errorf("%s", errMessage), trace.WithAttributes(attribute.String("url", page.Proxy.URL.String()), attribute.String("error", err.Error())))
 		span.SetStatus(codes.Error, errMessage)
 		return
 	}
@@ -236,7 +236,7 @@ func (p *Proxy) Serve(addr string) humane.Error {
 	}
 
 	if err := p.server.ListenAndServe(); err != nil {
-		if err == http.ErrServerClosed {
+		if strings.Contains(err.Error(), http.ErrServerClosed.Error()) {
 			otelzap.L().Sugar().Infow("proxy server stopped",
 				zap.String("addr", addr))
 			return nil

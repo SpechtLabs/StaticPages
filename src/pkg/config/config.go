@@ -60,7 +60,7 @@ func (s *StaticPagesConfig) Parse() humane.Error {
 
 		// Validate page config
 		if err := page.Validate(); err != nil {
-			return humane.Wrap(err, fmt.Sprintf("Invalid page configuration for %s", page.Domain), err.Advice()...)
+			return humane.Wrap(err, fmt.Sprintf("Validation failed for %s", page.Domain), err.Advice()...)
 		}
 	}
 

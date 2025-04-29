@@ -12,17 +12,6 @@ import (
 // or an environment variable reference using ENV('VAR_NAME')
 type EnvValue string
 
-// UnmarshalYAML unmarshals a YAML value into an EnvValue, resolving environment variables if the ENV() syntax is used.
-func (e *EnvValue) UnmarshalYAML(value string) humane.Error {
-	*e = EnvValue(value)
-	return e.Parse()
-}
-
-// UnmarshalText unmarshals a text byte slice into an EnvValue by delegating to its YAML unmarshaling implementation.
-func (e *EnvValue) UnmarshalText(text []byte) humane.Error {
-	return e.UnmarshalYAML(string(text))
-}
-
 func (e *EnvValue) Parse() humane.Error {
 	value := string(*e)
 

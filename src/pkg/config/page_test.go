@@ -25,7 +25,7 @@ func TestPageValidate(t *testing.T) {
 					ApplicationID: "app-id",
 					Secret:        "app-secret",
 				},
-				Proxy: config.Proxy{
+				Proxy: config.PageProxy{
 					URL:        "https://api.example.com",
 					Path:       "/proxy",
 					SearchPath: []string{"index.html"},
@@ -44,7 +44,7 @@ func TestPageValidate(t *testing.T) {
 					ApplicationID: "app-id",
 					Secret:        "app-secret",
 				},
-				Proxy: config.Proxy{
+				Proxy: config.PageProxy{
 					URL:        "https://api.example.com",
 					Path:       "/proxy",
 					SearchPath: []string{"index.html"},
@@ -64,7 +64,7 @@ func TestPageValidate(t *testing.T) {
 					ApplicationID: "app-id",
 					Secret:        "app-secret",
 				},
-				Proxy: config.Proxy{
+				Proxy: config.PageProxy{
 					URL:        "", // Missing Proxy URL
 					Path:       "/proxy",
 					SearchPath: []string{"index.html"},
@@ -84,7 +84,7 @@ func TestPageValidate(t *testing.T) {
 					ApplicationID: "app-id",
 					Secret:        "app-secret",
 				},
-				Proxy: config.Proxy{
+				Proxy: config.PageProxy{
 					URL:        "https://api.example.com",
 					Path:       "/proxy",
 					SearchPath: []string{"index.html"},
@@ -200,13 +200,13 @@ func TestBucketConfigValidate(t *testing.T) {
 func TestProxyValidate(t *testing.T) {
 	tests := []struct {
 		name         string
-		proxyConfig  config.Proxy
+		proxyConfig  config.PageProxy
 		expectError  bool
 		errorMessage string
 	}{
 		{
 			name: "valid proxy config",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "https://api.example.com",
 				Path:       "/proxy",
 				SearchPath: []string{"index.html"},
@@ -215,7 +215,7 @@ func TestProxyValidate(t *testing.T) {
 		},
 		{
 			name: "missing URL",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "",
 				Path:       "/proxy",
 				SearchPath: []string{"index.html"},
@@ -225,7 +225,7 @@ func TestProxyValidate(t *testing.T) {
 		},
 		{
 			name: "missing SearchPath",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "https://api.example.com",
 				Path:       "/proxy",
 				SearchPath: []string{}, // Empty search path
@@ -235,7 +235,7 @@ func TestProxyValidate(t *testing.T) {
 		},
 		{
 			name: "missing Path",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "https://api.example.com",
 				Path:       "",
 				SearchPath: []string{"index.html"},
@@ -245,7 +245,7 @@ func TestProxyValidate(t *testing.T) {
 		},
 		{
 			name: "invalid URL",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "://not-a-valid-url",
 				Path:       "/proxy",
 				SearchPath: []string{"index.html"},
@@ -286,7 +286,7 @@ func TestPageParse(t *testing.T) {
 					ApplicationID: "app-id",
 					Secret:        "app-secret",
 				},
-				Proxy: config.Proxy{
+				Proxy: config.PageProxy{
 					URL:        "https://api.example.com",
 					Path:       "/proxy",
 					SearchPath: []string{"index.html"},
@@ -304,7 +304,7 @@ func TestPageParse(t *testing.T) {
 					ApplicationID: "app-id",
 					Secret:        "app-secret",
 				},
-				Proxy: config.Proxy{
+				Proxy: config.PageProxy{
 					URL:        "https://api.example.com",
 					Path:       "/proxy",
 					SearchPath: []string{"index.html"},
@@ -323,7 +323,7 @@ func TestPageParse(t *testing.T) {
 					ApplicationID: "app-id",
 					Secret:        "app-secret",
 				},
-				Proxy: config.Proxy{
+				Proxy: config.PageProxy{
 					URL:        "ENV(not-a-valid-url)", // Invalid Proxy URL
 					Path:       "/proxy",
 					SearchPath: []string{"index.html"},
@@ -427,14 +427,14 @@ func TestParseBucketConfig(t *testing.T) {
 func TestParseProxyConfig(t *testing.T) {
 	tests := []struct {
 		name               string
-		proxyConfig        config.Proxy
+		proxyConfig        config.PageProxy
 		expectedSearchPath []string
 		expectError        bool
 		errorMessage       string
 	}{
 		{
 			name: "valid proxy config",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "https://s3.bucket.com",
 				Path:       "foo/bar",
 				SearchPath: []string{"/index.html", "/default.html"},
@@ -444,7 +444,7 @@ func TestParseProxyConfig(t *testing.T) {
 		},
 		{
 			name: "missing URL env",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "ENV(URL)",
 				Path:       "foo/bar",
 				SearchPath: []string{"/index.html", "/default.html"},
@@ -455,7 +455,7 @@ func TestParseProxyConfig(t *testing.T) {
 		},
 		{
 			name: "missing path env",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:        "https://s3.bucket.com",
 				Path:       "ENV(url_path)",
 				SearchPath: []string{"/index.html", "/default.html"},
@@ -466,7 +466,7 @@ func TestParseProxyConfig(t *testing.T) {
 		},
 		{
 			name: "default search paths",
-			proxyConfig: config.Proxy{
+			proxyConfig: config.PageProxy{
 				URL:  "https://s3.bucket.com",
 				Path: "foo/bar",
 			},

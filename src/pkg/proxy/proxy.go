@@ -4,16 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/SpechtLabs/StaticPages/pkg/config"
-	"github.com/golang/groupcache/singleflight"
-	humane "github.com/sierrasoftworks/humane-errors-go"
-	"github.com/spechtlabs/go-otel-utils/otelzap"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 	"io"
 	"net"
 	"net/http"
@@ -23,6 +13,17 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/SpechtLabs/StaticPages/pkg/config"
+	"github.com/golang/groupcache/singleflight"
+	"github.com/sierrasoftworks/humane-errors-go"
+	"github.com/spechtlabs/go-otel-utils/otelzap"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 // Proxy represents a reverse proxy server with logging, page management, and request handling capabilities.
@@ -90,10 +91,15 @@ func (p *Proxy) Director(req *http.Request) {
 
 	originalPath := req.URL.Path
 
-	requestUrl, _, err := net.SplitHostPort(req.Host)
-	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse request url", zap.Error(err), zap.String("request_url", req.Host))
-		return
+	requestUrl := req.Host
+
+	if strings.Contains(req.Host, ":") {
+		var err error
+		requestUrl, _, err = net.SplitHostPort(req.Host)
+		if err != nil {
+			otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse request url", zap.Error(err), zap.String("request_url", req.Host))
+			return
+		}
 	}
 
 	page, ok := p.pagesMap[requestUrl]

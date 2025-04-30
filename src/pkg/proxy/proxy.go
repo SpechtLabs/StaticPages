@@ -2,17 +2,10 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/SpechtLabs/StaticPages/pkg/config"
-	"github.com/golang/groupcache/singleflight"
-	humane "github.com/sierrasoftworks/humane-errors-go"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -20,6 +13,17 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/SpechtLabs/StaticPages/pkg/config"
+	"github.com/golang/groupcache/singleflight"
+	"github.com/sierrasoftworks/humane-errors-go"
+	"github.com/spechtlabs/go-otel-utils/otelzap"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 // Proxy represents a reverse proxy server with logging, page management, and request handling capabilities.
@@ -71,44 +75,42 @@ func NewProxy(conf config.StaticPagesConfig) *Proxy {
 
 // Director modifies the incoming HTTP request to route it to the appropriate backend server based on the request host and path.
 func (p *Proxy) Director(req *http.Request) {
-	ctx := req.Context()
-
-	// Start a new Span
-	ctx, span := p.tracer.Start(ctx, "proxy.Director", trace.WithAttributes(
+	ctx, span := p.tracer.Start(req.Context(), "proxy.Director", trace.WithAttributes(
 		attribute.String("http.method", req.Method),
-		attribute.String("http.host", req.Host),
-		attribute.String("http.url", req.URL.String()),
+		attribute.String("http.url", req.Host),
+		attribute.String("http.path", req.URL.String()),
 	))
 	defer span.End()
 
 	if ctx.Err() != nil {
 		otelzap.L().Sugar().Ctx(ctx).Warnw("request context canceled",
-			zap.String("url", req.URL.String()),
-			zap.String("path", req.URL.Path))
-
-		span.RecordError(ctx.Err())
+			zap.String("http.url", req.Host),
+			zap.String("http.path", req.URL.String()))
 		return
 	}
 
 	originalPath := req.URL.Path
+
 	requestUrl := req.Host
-	if strings.Contains(requestUrl, ":") {
-		requestUrl = strings.Split(requestUrl, ":")[0]
+
+	if strings.Contains(req.Host, ":") {
+		var err error
+		requestUrl, _, err = net.SplitHostPort(req.Host)
+		if err != nil {
+			otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse request url", zap.Error(err), zap.String("request_url", req.Host))
+			return
+		}
 	}
 
 	page, ok := p.pagesMap[requestUrl]
 	if !ok {
-		errMessage := fmt.Errorf("no page found")
-
-		otelzap.L().Sugar().Ctx(ctx).Errorw(errMessage.Error(), zap.String("requestUrl", requestUrl))
-		span.RecordError(errMessage, trace.WithAttributes(attribute.String("requestUrl", requestUrl)))
+		otelzap.L().Sugar().Ctx(ctx).Errorw("no page found", zap.String("request_url", requestUrl))
 		return
 	}
 
 	backendUrl, err := url.Parse(page.Proxy.URL.String())
 	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw(err.Error(), zap.String("url", page.Proxy.URL.String()))
-		span.RecordError(err, trace.WithAttributes(attribute.String("url", page.Proxy.URL.String())))
+		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse proxy.url", zap.Error(err), zap.String("backend_url", page.Proxy.URL.String()))
 		return
 	}
 
@@ -119,16 +121,9 @@ func (p *Proxy) Director(req *http.Request) {
 		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, path.Clean(fmt.Sprintf("/%s/%s", page.Proxy.Path, page.Proxy.NotFound)))
 
 		if err404 == nil {
-			otelzap.L().Sugar().Ctx(ctx).Warnw("no valid path found - serving 404 page",
-				zap.String("original_path", originalPath),
-				zap.String("404_path", fmt.Sprintf("%s%s", backendUrl, targetPath)),
-			)
+			otelzap.L().Sugar().Ctx(ctx).Warnw("no path found", zap.String("request_path", originalPath))
 		} else {
-			otelzap.L().Sugar().Ctx(ctx).Errorw("no valid path found",
-				zap.String("original_path", originalPath),
-				zap.Error(err),
-			)
-			span.RecordError(err)
+			otelzap.L().Sugar().Ctx(ctx).Errorw("no path found", zap.Error(err), zap.String("request_path", originalPath))
 		}
 	}
 
@@ -148,18 +143,26 @@ func (p *Proxy) Director(req *http.Request) {
 	req.Header.Set("X-Origin-Host", backendUrl.Host)
 
 	// Inject trace context headers for the backend call
+	req = req.WithContext(ctx)
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	// Log the request transformation
 	otelzap.L().Sugar().Ctx(ctx).Debugw("transformed request",
-		zap.String("original_path", originalPath),
-		zap.String("target_path", targetPath),
-		zap.String("backend_host", backendUrl.String()),
-		zap.String("backend_url", req.URL.String()))
+		zap.String("request_path", originalPath),
+		zap.String("backend_path", targetPath),
+		zap.String("backend_url", backendUrl.String()),
+		zap.String("backend_path", req.URL.String()))
 }
 
 // ErrorHandler handles errors during request processing by logging the error and responding with the appropriate HTTP status code.
-func (p *Proxy) ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+func (p *Proxy) ErrorHandler(w http.ResponseWriter, req *http.Request, err error) {
+	ctx, span := p.tracer.Start(req.Context(), "proxy.ErrorHandler", trace.WithAttributes(
+		attribute.String("http.method", req.Method),
+		attribute.String("http.url", req.Host),
+		attribute.String("http.path", req.URL.String()),
+	))
+	defer span.End()
+
 	responseCode := http.StatusBadGateway
 
 	switch err.Error() {
@@ -167,28 +170,35 @@ func (p *Proxy) ErrorHandler(w http.ResponseWriter, r *http.Request, err error) 
 		responseCode = 499 // Nginx non-standard code for when a client closes the connection
 	}
 
-	otelzap.L().Sugar().Ctx(r.Context()).Errorw("proxy error",
+	otelzap.L().Sugar().Ctx(ctx).Errorw("proxy error",
 		zap.Error(err),
-		zap.String("url", r.URL.String()),
-		zap.Int("code", responseCode))
+		zap.String("request_url", req.Host),
+		zap.Int("http.code", responseCode))
 
 	http.Error(w, err.Error(), responseCode)
 }
 
 // ModifyResponse inspects and logs HTTP responses with a status code of 300 or higher, returning nil or an error.
 func (p *Proxy) ModifyResponse(r *http.Response) error {
+	ctx, span := p.tracer.Start(r.Request.Context(), "proxy.ModifyResponse", trace.WithAttributes(
+		attribute.String("http.method", r.Request.Method),
+		attribute.String("http.url", r.Request.Host),
+		attribute.String("proxy_url", r.Request.URL.String()),
+	))
+	defer span.End()
+
 	if r.StatusCode >= 300 {
 		if otelzap.L().Sugar().Desugar().Core().Enabled(zap.DebugLevel) {
 			dump, _ := httputil.DumpResponse(r, true)
 
-			otelzap.L().Sugar().Ctx(r.Request.Context()).Debugw("received response",
-				zap.Int("code", r.StatusCode),
-				zap.String("url", r.Request.URL.String()),
-				zap.ByteString("url", dump))
+			otelzap.L().Sugar().Ctx(ctx).Debugw("received response",
+				zap.Int("http.code", r.StatusCode),
+				zap.String("request_url", r.Request.URL.String()),
+				zap.ByteString("body", dump))
 		} else {
-			otelzap.L().Sugar().Ctx(r.Request.Context()).Infow("received response",
-				zap.Int("code", r.StatusCode),
-				zap.String("url", r.Request.URL.String()))
+			otelzap.L().Sugar().Ctx(ctx).Infow("received response",
+				zap.Int("http.code", r.StatusCode),
+				zap.String("request_url", r.Request.URL.String()))
 		}
 	}
 
@@ -196,18 +206,34 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 }
 
 // ServeHTTP handles incoming HTTP requests and proxies them to the configured backend, allowing only GET requests.
-func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	ctx, span := p.tracer.Start(req.Context(), "proxy.ServeHTTP", trace.WithAttributes(
+		attribute.String("http.method", req.Method),
+		attribute.String("http.url", req.Host),
+		attribute.String("http.path", req.URL.String()),
+		attribute.String("http.user_agent", req.UserAgent()),
+	))
+	defer span.End()
+
 	// Only allow GET requests
-	if r.Method != http.MethodGet {
-		otelzap.L().Sugar().Ctx(r.Context()).Warnw("received non-GET request",
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path))
+	switch req.Method {
+	case http.MethodGet:
+		// Inject trace context headers for the backend call
+		req = req.WithContext(ctx)
+		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+
+		p.proxy.ServeHTTP(w, req)
+
+	default:
+		otelzap.L().Sugar().Ctx(ctx).Warnw("received invalid request",
+			zap.String("http.method", req.Method),
+			zap.String("http.url", req.Host),
+			zap.String("http.path", req.URL.String()),
+		)
 
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	p.proxy.ServeHTTP(w, r)
 }
 
 // ServeAsync starts the reverse proxy server on the specified address and logs the startup message.
@@ -268,8 +294,8 @@ func (p *Proxy) Shutdown() humane.Error {
 func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (int, error) {
 	// Start a span for the probePath method
 	ctx, span := p.tracer.Start(ctx, "proxy.probePath", trace.WithAttributes(
-		attribute.String("url", url.String()),
-		attribute.String("probe_location", location),
+		attribute.String("proxy_host", url.String()),
+		attribute.String("target_path", location),
 	))
 	defer span.End()
 
@@ -278,101 +304,96 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 		Timeout: 2 * time.Second,
 	}
 
-	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, url.String()+location, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url.String()+location, nil)
+	if err != nil {
+		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to create request", zap.Error(err), zap.String("url", url.String()+location), zap.String("http.method", http.MethodHead))
+		return http.StatusInternalServerError, err
+	}
 
 	// Inject trace context headers for the backend call
+	req = req.WithContext(ctx)
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	resp, err := client.Do(req)
-	if resp != nil {
-		span.SetAttributes(attribute.Int("code", resp.StatusCode))
-		span.SetStatus(codes.Ok, "")
-
-		return resp.StatusCode, err
+	if err != nil {
+		if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+			otelzap.L().Sugar().Ctx(ctx).Errorw("failed to probe path",
+				zap.Error(err),
+				zap.String("proxy_host", url.String()),
+				zap.String("target_path", location),
+			)
+		}
+		return http.StatusNotFound, err
 	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			otelzap.L().Sugar().Ctx(ctx).Errorw("failed to close response body", zap.Error(err))
+		}
+	}(resp.Body)
 
-	if err == nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to probe path", zap.String("url", url.String()), zap.String("location", location))
-	} else if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), context.Canceled.Error()) {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to probe path", zap.Error(err), zap.String("url", url.String()), zap.String("location", location))
-		span.RecordError(err)
-
-	}
-
-	return http.StatusNotFound, err
+	span.SetAttributes(attribute.Int("code", resp.StatusCode))
+	span.SetStatus(codes.Ok, "")
+	return resp.StatusCode, nil
 }
 
-func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost string, backendUrl *url.URL, targetPath string) (string, humane.Error) {
-	// Start a span for the lookupPath method
+func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost string, backendURL *url.URL, targetPath string) (string, humane.Error) {
 	ctx, span := p.tracer.Start(ctx, "proxy.lookupPath", trace.WithAttributes(
-		attribute.String("page.domain", page.Domain),
-		attribute.String("backend_url", backendUrl.String()),
+		attribute.String("proxy_host", backendURL.String()),
 		attribute.String("target_path", targetPath),
 		attribute.String("source_host", sourceHost),
 	))
 	defer span.End()
 
-	// Find the actual html document we are looking for
-	searchPath := append([]string{""}, page.Proxy.SearchPath...)
+	searchPaths := append([]string{""}, page.Proxy.SearchPath...)
+	foundPath := make(chan string, 1)
 
-	// find the validPath fast and not block
+	timeoutCtx, cancelTimeout := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelTimeout()
+
+	probeCtx, cancelProbes := context.WithCancel(timeoutCtx)
+	defer cancelProbes()
+
 	var wg sync.WaitGroup
-	validPath := make(chan string, 1)
-	timeoutCtx, _ := context.WithTimeout(ctx, 5*time.Second)
-	cancelableCtx, cancelCtx := context.WithCancel(timeoutCtx)
 
-	for _, lookupPath := range searchPath {
-		// Probe each searchPath asynchronously
+	for _, lookup := range searchPaths {
 		wg.Add(1)
-		go func() {
+
+		go func(lookup string) {
 			defer wg.Done()
 
-			// Cache search path computation
-			cacheKey := fmt.Sprintf("%s-%s-%s", sourceHost, targetPath, lookupPath)
+			cacheKey := fmt.Sprintf("%s-%s-%s", sourceHost, targetPath, lookup)
 			_, _ = p.group.Do(cacheKey, func() (interface{}, error) {
-				// Probe the path
-				testTarget := path.Clean(fmt.Sprintf("/%s/%s", targetPath, lookupPath))
-
-				statusCode, err := p.probePath(cancelableCtx, backendUrl, testTarget)
+				testPath := path.Clean(fmt.Sprintf("/%s/%s", targetPath, lookup))
+				statusCode, err := p.probePath(probeCtx, backendURL, testPath)
 				if err != nil {
 					return nil, humane.Wrap(err, "Unable to probe path", "Make sure the path exists and is accessible.")
 				}
 
 				if statusCode < http.StatusBadRequest {
-					span.SetStatus(codes.Ok, "Path found")
-					span.SetAttributes(attribute.String("found_path", testTarget))
-
 					select {
-					case validPath <- testTarget: // if a valid path is found, send it
-						cancelCtx() // cancel all others
-						return nil, nil
-
-					case <-cancelableCtx.Done(): // if context is canceled, stop sending
-						return nil, nil
+					case foundPath <- testPath:
+					case <-probeCtx.Done():
 					}
 				}
 				return nil, nil
 			})
-		}()
+		}(lookup)
 	}
 
-	// Wait for all go-routines to finish, then close path
 	go func() {
 		wg.Wait()
-		close(validPath)
+		close(foundPath)
 	}()
 
-	// Select first one
 	select {
-	case validPath, ok := <-validPath:
-		cancelCtx()
+	case p, ok := <-foundPath:
 		if ok {
-			return validPath, nil
+			cancelProbes()
+			return p, nil
 		}
-		return "", humane.New("no valid path found", "Make sure the path exists and is accessible.")
-
-	case <-cancelableCtx.Done():
-		cancelCtx()
+		return "", humane.New("No valid path found", "Make sure the path exists and is accessible.")
+	case <-probeCtx.Done():
 		return "", humane.New("Context cancelled", "Make sure the path exists and is accessible.")
 	}
 }

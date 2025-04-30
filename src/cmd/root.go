@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/SpechtLabs/StaticPages/pkg/config"
 	humane "github.com/sierrasoftworks/humane-errors-go"
+	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
 	"os"
 )

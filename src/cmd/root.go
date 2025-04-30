@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 	"github.com/SpechtLabs/StaticPages/pkg/config"
-	"github.com/spechtlabs/go-otel-utils/otelzap"
 	humane "github.com/sierrasoftworks/humane-errors-go"
+	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

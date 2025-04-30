@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"github.com/SpechtLabs/StaticPages/pkg/proxy"
+	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"

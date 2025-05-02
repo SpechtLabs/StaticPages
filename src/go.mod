@@ -7,7 +7,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/sierrasoftworks/humane-errors-go v0.0.0-20241125132722-d032d7dd359e
 	github.com/spechtlabs/go-otel-utils/otelprovider v0.0.5
-	github.com/spechtlabs/go-otel-utils/otelzap v0.0.4
+	github.com/spechtlabs/go-otel-utils/otelzap v0.0.5
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0

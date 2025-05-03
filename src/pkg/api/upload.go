@@ -77,14 +77,21 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 		return
 	}
 
+	metadata, err := s3client.DownloadMetadata(ctx)
+	if err != nil {
+		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get metadata", zap.Error(err), zap.String("domain", page.Domain.String()))
+		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update page metadata"})
+		return
+	}
+
 	// Update our Page Metadata
-	metadata := &s3_client.PageCommitMetadata{
+	metadata[claims.Sha] = &s3_client.PageCommitMetadata{
 		Environment: claims.Environment,
 		Branch:      claims.Branch(),
 		Date:        time.Now(),
 	}
 
-	herr = s3client.UploadMetadata(ctx, s3_client.PageMetadata{claims.Sha: metadata})
+	herr = s3client.UploadMetadata(ctx, metadata)
 	if herr != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to update page metadata", zap.Error(herr))
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update page metadata"})

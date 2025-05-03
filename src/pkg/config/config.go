@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/sierrasoftworks/humane-errors-go"
-	"github.com/spf13/viper"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 type Format string
@@ -49,22 +49,6 @@ type StaticPagesConfig struct {
 	Proxy  Proxy
 	Output Output
 	Pages  []*Page
-}
-
-func (s *StaticPagesConfig) Parse() humane.Error {
-	// Parse each page configuration
-	for _, page := range s.Pages {
-		if err := page.Parse(); err != nil {
-			return humane.Wrap(err, fmt.Sprintf("Invalid page configuration for %s", page.Domain), err.Advice()...)
-		}
-
-		// Validate page config
-		if err := page.Validate(); err != nil {
-			return humane.Wrap(err, fmt.Sprintf("Validation failed for %s", page.Domain), err.Advice()...)
-		}
-	}
-
-	return nil
 }
 
 func (s *StaticPagesConfig) ApiBindAddr() string {

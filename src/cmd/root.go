@@ -2,20 +2,19 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/SpechtLabs/StaticPages/pkg/config"
-	humane "github.com/sierrasoftworks/humane-errors-go"
+	"github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"os"
 )
 
 var (
 	configFileName string
 	configuration  config.StaticPagesConfig
-
-	undoFinalizer func()
 )
 
 func init() {
@@ -83,11 +82,6 @@ func readConfig() {
 	if err := viper.Unmarshal(&configuration); err != nil {
 		herr := humane.Wrap(err, "Unable to parse config file", "Make sure the config file exists, is readable, and conforms to the format.")
 		fmt.Printf("Unable to read config file, assuming default values: %s\n", herr.Display())
-		os.Exit(1)
-	}
-
-	if err := configuration.Parse(); err != nil {
-		fmt.Println(err.Display())
 		os.Exit(1)
 	}
 }

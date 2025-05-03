@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEnvValueParse(t *testing.T) {
@@ -90,7 +91,7 @@ func TestEnvValueParse(t *testing.T) {
 
 			// Create an EnvValue and parse it
 			e := EnvValue(test.inputValue)
-			err := e.Parse()
+			err := e.Validate()
 
 			// Check expected results
 			if test.expectError {

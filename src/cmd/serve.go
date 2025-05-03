@@ -32,8 +32,6 @@ var serveCmd = &cobra.Command{
 	Example: "staticpages serve --api --proxy",
 	Args:    cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		defer undoFinalizer()
-
 		p := proxy.NewProxy(configuration)
 		a := api.NewRestApi(configuration)
 

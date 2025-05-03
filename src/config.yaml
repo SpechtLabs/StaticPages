@@ -12,40 +12,40 @@ output:
   format: long
 
 pages:
-  - domain: cedi.av0.de
-
-    # Configure the S3 bucket where the website is hosted in
-    bucket:
-      url: https://s3.eu-central-003.backblazeb2.com
-      name: cedi-testing
-      applicationId: ENV(APPLICATION_ID)
-      secret: ENV(S3_SECRET)
-
-    # Configure Proxy URL
-    proxy:
-      url: https://f003.backblazeb2.com
-      path: file/cedi-testing/cedi
-
-    # specify a retention period (how many commit websites to keep)
-    history: 10
-
-    # Grant access to the repositories to use this domain
-    auth:
-      provider: github
-      repository: cedi/cedi.github.io.git
-
-    # Configure how sub-domains are handed out
-    # {{ .Environment }} - the environment as sent by GHA
-    # {{ .RepoName }} - the name of the Git repository
-    # {{ .Domain }} - the Domain name configured at the top of the page
-    subDomains:
-      'spechtlabs.github.io':
-        # pattern supports go-template
-        pattern: '{{ if len(.Environment) gt 0 }} {{ .Environment }}.{{ end }}{{ .Domain }}'
-        history: 15                # keep the latest 15 commits (except the 'active' commit)
-
-      '*':
-        pattern: '{{ .RepoName }}.{{ .Domain }}'
+#  - domain: cedi.av0.de
+#
+#    # Configure the S3 bucket where the website is hosted in
+#    bucket:
+#      url: https://s3.eu-central-003.backblazeb2.com
+#      name: cedi-testing
+#      applicationId: ENV(APPLICATION_ID)
+#      secret: ENV(S3_SECRET)
+#
+#    # Configure Proxy URL
+#    proxy:
+#      url: https://f003.backblazeb2.com
+#      path: file/cedi-testing/cedi
+#
+#    # specify a retention period (how many commit websites to keep)
+#    history: 10
+#
+#    # Grant access to the repositories to use this domain
+#    auth:
+#      provider: github
+#      repository: cedi/cedi.github.io.git
+#
+#    # Configure how sub-domains are handed out
+#    # {{ .Environment }} - the environment as sent by GHA
+#    # {{ .RepoName }} - the name of the Git repository
+#    # {{ .Domain }} - the Domain name configured at the top of the page
+#    subDomains:
+#      'spechtlabs.github.io':
+#        # pattern supports go-template
+#        pattern: '{{ if len(.Environment) gt 0 }} {{ .Environment }}.{{ end }}{{ .Domain }}'
+#        history: 15                # keep the latest 15 commits (except the 'active' commit)
+#
+#      '*':
+#        pattern: '{{ .RepoName }}.{{ .Domain }}'
 
   - domain: specht.av0.de
 
@@ -60,26 +60,34 @@ pages:
     # Configure Proxy URL
     proxy:
       url: https://f003.backblazeb2.com
-      path: file/cedi-testing/gold-specht
+      path: file/cedi-testing
       notFound: 404.html
-
-    # specify a retention period (how many commit websites to keep)
-    history: 10
+      searchPath:
+        - /index.html
+        - /index.htm
 
     # Grant access to the repositories to use this domain
-    auth:
+    git:
       provider: github
       repository: Goldschmiede-Metallglanz/Goldschmiede-Metallglanz
+      mainBranch: main
 
-    # Configure how sub-domains are handed out
-    # {{ .Environment }} - the environment as sent by GHA
-    # {{ .RepoName }} - the name of the Git repository
-    # {{ .Domain }} - the Domain name configured at the top of the page
-    subDomains:
-      'spechtlabs.github.io':
-        # pattern supports go-template
-        pattern: '{{ if len(.Environment) gt 0 }} {{ .Environment }}.{{ end }}{{ .Domain }}'
-        history: 15                # keep the latest 15 commits (except the 'active' commit)
+    # Configure preview-build sub domains
+    #
+    # {{ .CommitSha }}   - the exact commit SHA
+    # {{ .Environment }} - the Environment configured in GitHub
+    # {{ .Branch }}      - the branch name of a build
+    preview:
+      enabled: true
+      history: 5 # default retention for all patterns
+      domains:
+        - pattern: '{{ .Environment }}.{{ .Domain }}'
+          when: '{{ .Environment }}'  # Only applies if .Environment is set
+          history: 0
 
-      '*':
-        pattern: '{{ .RepoName }}.{{ .Domain }}'
+        - pattern: '{{ .Branch }}.{{ .Domain }}'
+          when: '{{ .Branch }}'       # Only applies if .Branch is set and not "main"
+          history: 3
+
+        - pattern: '{{ .CommitSha }}.{{ .Domain }}'
+          history: 10

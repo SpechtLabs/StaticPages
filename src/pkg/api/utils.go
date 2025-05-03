@@ -8,7 +8,7 @@ import (
 
 func (r *RestApi) extractPagesConfig(repo string) *config.Page {
 	for _, page := range r.conf.Pages {
-		if page.Auth.Repository == repo {
+		if page.Git.Repository == repo {
 			return page
 		}
 	}

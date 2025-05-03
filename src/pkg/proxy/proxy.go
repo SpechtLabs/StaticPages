@@ -16,6 +16,7 @@ import (
 
 	"github.com/SpechtLabs/StaticPages/pkg/api"
 	"github.com/SpechtLabs/StaticPages/pkg/config"
+	"github.com/SpechtLabs/StaticPages/pkg/s3_client"
 	"github.com/golang/groupcache/singleflight"
 	"github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
@@ -29,7 +30,7 @@ import (
 
 // Proxy represents a reverse proxy server with logging, page management, and request handling capabilities.
 type Proxy struct {
-	pagesMap map[string]*config.Page
+	pagesMap config.DomainMapper
 	conf     config.StaticPagesConfig
 	proxy    *httputil.ReverseProxy
 	group    singleflight.Group
@@ -39,18 +40,8 @@ type Proxy struct {
 
 // NewProxy initializes and returns a new Proxy instance configured with the provided logger and page definitions.
 func NewProxy(conf config.StaticPagesConfig) *Proxy {
-	// construct a map for easier lookup in the director
-	pagesMap := make(map[string]*config.Page)
-	for _, page := range conf.Pages {
-		if pagesMap[page.Domain] != nil {
-			otelzap.L().Sugar().Warnw("duplicate page domain", zap.String("domain", page.Domain))
-		}
-
-		pagesMap[page.Domain] = page
-	}
-
 	p := &Proxy{
-		pagesMap: pagesMap,
+		pagesMap: config.NewDomainMapperFromPages(conf.Pages),
 		proxy:    nil,
 		conf:     conf,
 		server:   nil,
@@ -103,8 +94,8 @@ func (p *Proxy) Director(req *http.Request) {
 		}
 	}
 
-	page, ok := p.pagesMap[requestUrl]
-	if !ok {
+	page := p.pagesMap.Lookup(requestUrl)
+	if page == nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("no page found", zap.String("request_url", requestUrl))
 		return
 	}
@@ -116,7 +107,36 @@ func (p *Proxy) Director(req *http.Request) {
 	}
 
 	// Find the actual html document we are looking for
-	targetPath, err := p.lookupPath(ctx, page, requestUrl, backendUrl, path.Clean(fmt.Sprintf("/%s/%s", page.Proxy.Path, originalPath)))
+	lookupPath := path.Join(path.Clean(page.Proxy.Path.String()), path.Clean(page.Git.Repository))
+
+	sub, err := page.Domain.Subdomain(requestUrl)
+	if sub == "" {
+		sub = page.Git.MainBranch
+	}
+
+	s3Client, err := s3_client.GetS3Client(page.Domain.String())
+	if err != nil {
+		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get s3 client", zap.Error(err), zap.String("domain", page.Domain.String()))
+		return
+	}
+
+	metadata, err := s3Client.DownloadMetadata(ctx)
+	if err != nil {
+		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get metadata", zap.Error(err), zap.String("domain", page.Domain.String()))
+	}
+
+	if sha, _, err := metadata.GetLatestForBranch(sub); err == nil {
+		lookupPath = path.Join(lookupPath, path.Clean(sha))
+	} else if _, err := metadata.GetBySHA(sub); err == nil {
+		lookupPath = path.Join(lookupPath, path.Clean(sub))
+	} else {
+		otelzap.L().Sugar().Ctx(ctx).Errorw("could not find a commit to serve page for", zap.String("request_url", requestUrl), zap.String("domain", page.Domain.String()))
+		return
+	}
+
+	lookupPath = path.Join(lookupPath, path.Clean(originalPath))
+
+	targetPath, err := p.lookupPath(ctx, page, requestUrl, backendUrl, lookupPath)
 	if err != nil {
 		var err404 humane.Error
 		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, path.Clean(fmt.Sprintf("/%s/%s", page.Proxy.Path, page.Proxy.NotFound)))
@@ -132,7 +152,7 @@ func (p *Proxy) Director(req *http.Request) {
 	req.URL.Host = backendUrl.Host
 	req.URL.Path = targetPath
 
-	// Clear the RequestURI as it's required for client requests
+	// Clear the RequestURI as it's required for s3_client requests
 	req.RequestURI = ""
 
 	// Set or update headers
@@ -168,7 +188,7 @@ func (p *Proxy) ErrorHandler(w http.ResponseWriter, req *http.Request, err error
 
 	switch err.Error() {
 	case "context canceled":
-		responseCode = api.StatusRequestContextCanceled // Nginx non-standard code for when a client closes the connection
+		responseCode = api.StatusRequestContextCanceled // Nginx non-standard code for when a s3_client closes the connection
 	}
 
 	otelzap.L().Sugar().Ctx(ctx).Errorw("proxy error",
@@ -300,7 +320,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	))
 	defer span.End()
 
-	// create a http client with short timeout for fast failure
+	// create a http s3_client with short timeout for fast failure
 	client := &http.Client{
 		Timeout: 2 * time.Second,
 	}

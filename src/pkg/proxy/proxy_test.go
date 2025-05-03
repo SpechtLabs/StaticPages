@@ -3,15 +3,16 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/SpechtLabs/StaticPages/pkg/config"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 func initLogger() *bytes.Buffer {
@@ -76,7 +77,7 @@ func TestNewProxy(t *testing.T) {
 
 			// Validate the resulting `proxy.pages` map
 			for domain, expectedURL := range test.expectedPages {
-				page, exists := proxy.pagesMap[domain]
+				page, exists := proxy.pagesMap[config.FromString(domain)]
 				assert.True(t, exists, "Expected domain %s to exist", domain)
 				if exists {
 					assert.Equal(t, expectedURL, page.Proxy.URL.String(), "Expected backend URL for domain %s to be %s", domain, expectedURL)
@@ -179,7 +180,7 @@ func TestProxyServeHTTP(t *testing.T) {
 			conf := config.StaticPagesConfig{
 				Pages: []*config.Page{
 					{
-						Domain: test.domain,
+						Domain: config.FromString(test.domain),
 						Proxy: config.PageProxy{
 							URL:        config.EnvValue(backend.URL),
 							SearchPath: test.searchPaths,
@@ -191,7 +192,7 @@ func TestProxyServeHTTP(t *testing.T) {
 			// Create the proxy
 			proxy := NewProxy(conf)
 
-			// Simulate the client request
+			// Simulate the s3_client request
 			req := httptest.NewRequest(test.method, fmt.Sprintf("http://%s%s", test.domain, test.requestPath), nil)
 			rr := httptest.NewRecorder()
 

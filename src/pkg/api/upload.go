@@ -63,7 +63,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 		return
 	}
 
-	s3client, herr := s3_client.GetS3Client(page.Domain.String())
+	s3client := s3_client.NewS3PageClient(page)
 	if herr != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to get s3 client", zap.Error(herr))
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save artifacts"})

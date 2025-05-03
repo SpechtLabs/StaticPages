@@ -114,12 +114,7 @@ func (p *Proxy) Director(req *http.Request) {
 		sub = page.Git.MainBranch
 	}
 
-	s3Client, err := s3_client.GetS3Client(page.Domain.String())
-	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get s3 client", zap.Error(err), zap.String("domain", page.Domain.String()))
-		return
-	}
-
+	s3Client := s3_client.NewS3PageClient(page)
 	metadata, err := s3Client.DownloadMetadata(ctx)
 	if err != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get metadata", zap.Error(err), zap.String("domain", page.Domain.String()))

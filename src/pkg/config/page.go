@@ -1,12 +1,5 @@
 package config
 
-import (
-	"fmt"
-	"strings"
-
-	"github.com/sierrasoftworks/humane-errors-go"
-)
-
 type Page struct {
 	Domain  DomainScope   `yaml:"domain"`
 	Bucket  BucketConfig  `yaml:"bucket"`
@@ -40,14 +33,4 @@ type GitConfig struct {
 	Provider   string `yaml:"provider"`
 	Repository string `yaml:"repository"`
 	MainBranch string `yaml:"mainBranch"`
-}
-
-func (g *GitConfig) GetAudience() (string, humane.Error) {
-	switch g.Provider {
-	case "github":
-		return fmt.Sprintf("https://github.com/%s", strings.Split(g.Repository, "/")[0]), nil
-
-	default:
-		return "", humane.New("Invalid Provider is provided", "Make sure to provide a Authorization Provider in pages[].auth.provider (currently only github is supported)")
-	}
 }

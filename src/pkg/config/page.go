@@ -1,8 +1,11 @@
 package config
 
 import (
-	humane "github.com/sierrasoftworks/humane-errors-go"
+	"fmt"
 	"net/url"
+	"strings"
+
+	"github.com/sierrasoftworks/humane-errors-go"
 )
 
 type Page struct {
@@ -10,7 +13,7 @@ type Page struct {
 	Bucket     BucketConfig         `yaml:"bucket"`
 	Proxy      PageProxy            `yaml:"proxy"`
 	History    int                  `yaml:"history"`
-	Repository string               `yaml:"repository"`
+	Auth       AuthorizationConfig  `yaml:"auth"`
 	SubDomains map[string]SubDomain `yaml:"subDomains"`
 }
 
@@ -27,14 +30,14 @@ func (p *Page) Validate() humane.Error {
 		return humane.New("Invalid number of revisions to keep ", "history must be a non-negative value")
 	}
 
+	if err := p.Auth.Validate(); err != nil {
+		return humane.Wrap(err, "Invalid authorization configuration", err.Advice()...)
+	}
+
 	return nil
 }
 
 func (p *Page) Parse() humane.Error {
-	if err := p.Bucket.Parse(); err != nil {
-		return humane.Wrap(err, "Invalid bucket configuration", err.Advice()...)
-	}
-
 	if err := p.Proxy.Parse(); err != nil {
 		return humane.Wrap(err, "Invalid proxy configuration", err.Advice()...)
 	}
@@ -47,6 +50,7 @@ type BucketConfig struct {
 	Name          EnvValue `yaml:"name"`
 	ApplicationID EnvValue `yaml:"applicationId"`
 	Secret        EnvValue `yaml:"secret"`
+	Region        EnvValue `yaml:"region"`
 }
 
 func (bc *BucketConfig) Validate() humane.Error {
@@ -73,26 +77,6 @@ func (bc *BucketConfig) Validate() humane.Error {
 	return nil
 }
 
-func (bc *BucketConfig) Parse() humane.Error {
-	if err := bc.URL.Parse(); err != nil {
-		return err
-	}
-
-	if err := bc.Name.Parse(); err != nil {
-		return err
-	}
-
-	if err := bc.ApplicationID.Parse(); err != nil {
-		return err
-	}
-
-	if err := bc.Secret.Parse(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 type PageProxy struct {
 	URL        EnvValue `yaml:"url"`
 	Path       EnvValue `yaml:"path"`
@@ -105,12 +89,20 @@ func (pc *PageProxy) Validate() humane.Error {
 		return humane.New("No Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
 	}
 
+	if pc.URL.Validate() != nil {
+		return humane.New("Invalid Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
+	}
+
 	if _, err := url.Parse(pc.URL.String()); err != nil {
 		return humane.New("Invalid Reverse-Proxy URL is provided", "Make sure to provide a valid URL for which the reverse proxy is created in in pages[].proxy.url")
 	}
 
 	if pc.Path == "" {
 		return humane.New("No Reverse-Proxy Path is provided", "Make sure to provide a URL path for which the reverse proxy is created in in pages[].proxy.path")
+	}
+
+	if pc.Path.Validate() != nil {
+		return humane.New("Invalid Reverse-Proxy Path is provided", "Make sure to provide a URL path for which the reverse proxy is created in in pages[].proxy.path")
 	}
 
 	if len(pc.SearchPath) == 0 {
@@ -121,15 +113,6 @@ func (pc *PageProxy) Validate() humane.Error {
 }
 
 func (pc *PageProxy) Parse() humane.Error {
-
-	if err := pc.URL.Parse(); err != nil {
-		return err
-	}
-
-	if err := pc.Path.Parse(); err != nil {
-		return err
-	}
-
 	if len(pc.SearchPath) == 0 {
 		pc.SearchPath = []string{
 			"/index.html",
@@ -147,4 +130,35 @@ func (pc *PageProxy) Parse() humane.Error {
 type SubDomain struct {
 	Pattern string `yaml:"pattern"`
 	History int    `yaml:"history"`
+}
+
+type AuthorizationConfig struct {
+	Provider   string `yaml:"provider"`
+	Repository string `yaml:"repository"`
+}
+
+func (ac *AuthorizationConfig) Validate() humane.Error {
+	if ac.Provider == "" {
+		return humane.New("No Provider is provided", "Make sure to provide a Authorization Provider in pages[].auth.provider (currently only github is supported)")
+	}
+
+	if ac.Provider != "github" {
+		return humane.New("Invalid Provider is provided", "Make sure to provide a Authorization Provider in pages[].auth.provider (currently only github is supported)")
+	}
+
+	if ac.Repository == "" {
+		return humane.New("No Repository is provided", "Make sure to provide a Repository in pages[].auth.repository")
+	}
+
+	return nil
+}
+
+func (ac *AuthorizationConfig) GetAudience() (string, humane.Error) {
+	switch ac.Provider {
+	case "github":
+		return fmt.Sprintf("https://github.com/%s", strings.Split(ac.Repository, "/")[0]), nil
+
+	default:
+		return "", humane.New("Invalid Provider is provided", "Make sure to provide a Authorization Provider in pages[].auth.provider (currently only github is supported)")
+	}
 }

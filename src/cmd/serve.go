@@ -1,15 +1,17 @@
 package cmd
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/SpechtLabs/StaticPages/pkg/api"
 	"github.com/SpechtLabs/StaticPages/pkg/proxy"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 var (
@@ -27,22 +29,17 @@ func init() {
 var serveCmd = &cobra.Command{
 	Use:     "serve",
 	Short:   "Serves the static pages application",
-	Example: "staticpages version",
+	Example: "staticpages serve --api --proxy",
 	Args:    cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer undoFinalizer()
 
 		p := proxy.NewProxy(configuration)
+		a := api.NewRestApi(configuration)
 
 		// Serve Rest-API
 		if serveApi {
-			go func() {
-				// TODO: Implement api!
-				//restApiServer := api.NewRestApiServer(otelZap, iCalClient)
-				//if err := restApiServer.ListenAndServe(); err != nil {
-				//	panic(err.Error())
-				//}
-			}()
+			a.ServeAsync(configuration.ApiBindAddr())
 		}
 
 		// Serve Reverse Proxy
@@ -54,6 +51,19 @@ var serveCmd = &cobra.Command{
 			otelzap.L().Sugar().Infow("Config file change detected. Reloading", zap.String("filename", e.Name))
 
 			readConfig()
+
+			if serveApi {
+				if err := a.Shutdown(); err != nil {
+					otelzap.L().Sugar().Fatalw("Unable to shutdown api",
+						zap.Error(err),
+						zap.Strings("advice", err.Advice()),
+						zap.String("cause", err.Cause().Error()))
+					return
+				}
+
+				a = api.NewRestApi(configuration)
+				a.ServeAsync(configuration.ProxyBindAddr())
+			}
 
 			if serveProxy {
 				if err := p.Shutdown(); err != nil {

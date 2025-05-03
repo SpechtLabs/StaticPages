@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  proxyPort: 8080
+  apiPort: 8081
 
 proxy:
   maxIdleConns: 1000
@@ -29,7 +30,9 @@ pages:
     history: 10
 
     # Grant access to the repositories to use this domain
-    repository: https://github.com/cedi/cedi.github.io.git
+    auth:
+      provider: github
+      repository: cedi/cedi.github.io.git
 
     # Configure how sub-domains are handed out
     # {{ .Environment }} - the environment as sent by GHA
@@ -48,6 +51,7 @@ pages:
 
     # Configure the S3 bucket where the website is hosted in
     bucket:
+      region: eu-central-003
       url: https://s3.eu-central-003.backblazeb2.com
       name: cedi-testing
       applicationId: ENV(APPLICATION_ID)
@@ -63,7 +67,9 @@ pages:
     history: 10
 
     # Grant access to the repositories to use this domain
-    repository: https://github.com/cedi/cedi.github.io.git
+    auth:
+      provider: github
+      repository: Goldschmiede-Metallglanz/Goldschmiede-Metallglanz
 
     # Configure how sub-domains are handed out
     # {{ .Environment }} - the environment as sent by GHA

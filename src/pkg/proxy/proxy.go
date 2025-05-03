@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SpechtLabs/StaticPages/pkg/api"
 	"github.com/SpechtLabs/StaticPages/pkg/config"
 	"github.com/golang/groupcache/singleflight"
 	"github.com/sierrasoftworks/humane-errors-go"
@@ -167,7 +168,7 @@ func (p *Proxy) ErrorHandler(w http.ResponseWriter, req *http.Request, err error
 
 	switch err.Error() {
 	case "context canceled":
-		responseCode = 499 // Nginx non-standard code for when a client closes the connection
+		responseCode = api.StatusRequestContextCanceled // Nginx non-standard code for when a client closes the connection
 	}
 
 	otelzap.L().Sugar().Ctx(ctx).Errorw("proxy error",

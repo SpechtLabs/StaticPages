@@ -38,7 +38,6 @@ func NewDomainMapperFromPages(pages []*Page) DomainMapper {
 // a lookup for "dev.specht.av0.de" would return the page for "specht.av0.de".
 func (dm DomainMapper) Lookup(domain string) *Page {
 	var (
-		longestMatch      DomainScope
 		longestMatchLevel int
 		matchedPage       *Page
 		foundValidMatch   bool
@@ -56,17 +55,9 @@ func (dm DomainMapper) Lookup(domain string) *Page {
 
 		// If this is our first match or it has more specific level than our previous best match
 		if !foundValidMatch || currentMatchLevel > longestMatchLevel {
-			longestMatch = matcher
 			longestMatchLevel = currentMatchLevel
 			matchedPage = page
 			foundValidMatch = true
-		} else if currentMatchLevel == longestMatchLevel {
-			// If we have a tie in level, prefer the lexicographically larger one
-			// This is somewhat arbitrary but provides consistent results
-			if len(matcher) > len(longestMatch) {
-				longestMatch = matcher
-				matchedPage = page
-			}
 		}
 	}
 

@@ -7,6 +7,178 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewDomainMapperFromPages_Initialization(t *testing.T) {
+	// Create the sample domain mapper
+	mapper := createTestDomainMapper()
+
+	// Test basic structure
+	assert.Len(t, mapper, 3, "Mapper should contain 3 domain entries")
+}
+
+func TestNewDomainMapperFromPages_DirectAccess(t *testing.T) {
+	// Create the sample domain mapper
+	mapper := createTestDomainMapper()
+
+	// Test direct map access
+	directAccessTests := []struct {
+		name     string
+		domain   config.DomainScope
+		expected bool
+	}{
+		{
+			name:     "existing domain - example.com",
+			domain:   config.DomainScope("example.com"),
+			expected: true,
+		},
+		{
+			name:     "existing domain - sub.example.com",
+			domain:   config.DomainScope("sub.example.com"),
+			expected: true,
+		},
+		{
+			name:     "existing domain - another.com",
+			domain:   config.DomainScope("another.com"),
+			expected: true,
+		},
+		{
+			name:     "non-existent domain",
+			domain:   config.DomainScope("nonexistent.com"),
+			expected: false,
+		},
+	}
+
+	for _, tc := range directAccessTests {
+		t.Run(tc.name, func(t *testing.T) {
+			page := mapper[tc.domain]
+			if tc.expected {
+				assert.NotNil(t, page, "Should have page for %s", tc.domain)
+			} else {
+				assert.Nil(t, page, "Should not have page for %s", tc.domain)
+			}
+		})
+	}
+}
+
+func TestNewDomainMapperFromPages_Lookup(t *testing.T) {
+	// Create the sample domain mapper
+	mapper := createTestDomainMapper()
+
+	// Test lookup functionality
+	lookupTests := []struct {
+		name           string
+		lookupDomain   string
+		expectFound    bool
+		expectedBucket string
+	}{
+		{
+			name:           "exact match - example.com",
+			lookupDomain:   "example.com",
+			expectFound:    true,
+			expectedBucket: "example-bucket",
+		},
+		{
+			name:           "exact match - sub.example.com",
+			lookupDomain:   "sub.example.com",
+			expectFound:    true,
+			expectedBucket: "sub-example-bucket",
+		},
+		{
+			name:           "subdomain match - deep.sub.example.com",
+			lookupDomain:   "deep.sub.example.com",
+			expectFound:    true,
+			expectedBucket: "sub-example-bucket",
+		},
+		{
+			name:           "no match - nonexistent.com",
+			lookupDomain:   "nonexistent.com",
+			expectFound:    false,
+			expectedBucket: "",
+		},
+	}
+
+	for _, tc := range lookupTests {
+		t.Run(tc.name, func(t *testing.T) {
+			page := mapper.Lookup(tc.lookupDomain)
+			if tc.expectFound {
+				assert.NotNil(t, page, "Should find page for %s", tc.lookupDomain)
+				assert.Equal(t, tc.expectedBucket, page.Bucket.Name.String(),
+					"Should get correct bucket for %s", tc.lookupDomain)
+			} else {
+				assert.Nil(t, page, "Should not find page for %s", tc.lookupDomain)
+			}
+		})
+	}
+}
+
+func TestNewDomainMapperFromPages_GetMatchingDomain(t *testing.T) {
+	// Create the sample domain mapper
+	mapper := createTestDomainMapper()
+
+	// Test GetMatchingDomain
+	matchingDomainTests := []struct {
+		name           string
+		inputDomain    string
+		expectedDomain config.DomainScope
+	}{
+		{
+			name:           "exact match - example.com",
+			inputDomain:    "example.com",
+			expectedDomain: config.DomainScope("example.com"),
+		},
+		{
+			name:           "exact match - sub.example.com",
+			inputDomain:    "sub.example.com",
+			expectedDomain: config.DomainScope("sub.example.com"),
+		},
+		{
+			name:           "subdomain match - deep.sub.example.com",
+			inputDomain:    "deep.sub.example.com",
+			expectedDomain: config.DomainScope("sub.example.com"),
+		},
+		{
+			name:           "no match - nonexistent.com",
+			inputDomain:    "nonexistent.com",
+			expectedDomain: config.DomainScope(""),
+		},
+	}
+
+	for _, tc := range matchingDomainTests {
+		t.Run(tc.name, func(t *testing.T) {
+			matchingDomain := mapper.GetMatchingDomain(tc.inputDomain)
+			assert.Equal(t, tc.expectedDomain, matchingDomain,
+				"Should return the correct matching domain for %s", tc.inputDomain)
+		})
+	}
+}
+
+// Helper function to create a test domain mapper
+func createTestDomainMapper() config.DomainMapper {
+	// Create test pages
+	pages := []*config.Page{
+		{
+			Domain: config.DomainScope("example.com"),
+			Bucket: config.BucketConfig{
+				Name: "example-bucket",
+			},
+		},
+		{
+			Domain: config.DomainScope("sub.example.com"),
+			Bucket: config.BucketConfig{
+				Name: "sub-example-bucket",
+			},
+		},
+		{
+			Domain: config.DomainScope("another.com"),
+			Bucket: config.BucketConfig{
+				Name: "another-bucket",
+			},
+		},
+	}
+
+	// Create and return the domain mapper
+	return config.NewDomainMapperFromPages(pages)
+}
+
 func TestDomainMapper_Lookup(t *testing.T) {
 	// Create some test pages
 	page1 := &config.Page{Domain: "specht.av0.de"}

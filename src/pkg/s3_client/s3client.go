@@ -234,7 +234,7 @@ func determineContentType(filePath string) string {
 }
 
 func (c *S3PageClient) UploadPageIndex(ctx context.Context, metadata PageIndex) humane.Error {
-	ctx, span := c.tracer.Start(ctx, "s3Client.uploadMetadata")
+	ctx, span := c.tracer.Start(ctx, "s3Client.UploadPageIndex")
 	defer span.End()
 
 	data, err := yaml.Marshal(metadata)
@@ -244,7 +244,7 @@ func (c *S3PageClient) UploadPageIndex(ctx context.Context, metadata PageIndex) 
 		return humane.Wrap(err, "failed to marshal metadata for S3 upload")
 	}
 
-	s3Key := filepath.ToSlash(path.Join(c.repository, "metadata.yaml"))
+	s3Key := filepath.ToSlash(path.Join(c.repository, "index.yaml"))
 
 	_, err = c.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(c.s3BucketName),
@@ -265,11 +265,11 @@ func (c *S3PageClient) UploadPageIndex(ctx context.Context, metadata PageIndex) 
 }
 
 func (c *S3PageClient) DownloadPageIndex(ctx context.Context) (PageIndex, humane.Error) {
-	ctx, span := c.tracer.Start(ctx, "s3Client.downloadMetadata")
+	ctx, span := c.tracer.Start(ctx, "s3Client.DownloadPageIndex")
 	defer span.End()
 
 	// Convert Windows path separators to forward slashes
-	s3Key := filepath.ToSlash(path.Join(c.repository, "metadata.yaml"))
+	s3Key := filepath.ToSlash(path.Join(c.repository, "index.yaml"))
 
 	resp, err := c.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(c.s3BucketName),

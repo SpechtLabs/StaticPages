@@ -68,16 +68,16 @@ pages:
 
     # Grant access to the repositories to use this domain
     git:
-      provider: custom
+      provider: github
       repository: Goldschmiede-Metallglanz/Goldschmiede-Metallglanz
       mainBranch: main
-      oidc:
-        issuer: https://token.actions.githubusercontent.com
-        claimMappings:
-          Repository: repository
-          Commit: sha
-          Branch: ref
-          Environment: environment
+#      oidc:
+#        issuer: https://token.actions.githubusercontent.com
+#        claimMappings:
+#          Repository: repository
+#          Commit: sha
+#          Branch: ref
+#          Environment: environment
 
     # Configure preview-build sub domains
     preview:

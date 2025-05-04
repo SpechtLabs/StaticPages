@@ -3,12 +3,16 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/SpechtLabs/StaticPages/pkg/config"
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -177,6 +181,9 @@ func TestProxyServeHTTP(t *testing.T) {
 			backend := setupMockServer(&test)
 			defer backend.Close()
 
+			s3Backend := setupMockS3(&test)
+			defer s3Backend.Close()
+
 			conf := config.StaticPagesConfig{
 				Pages: []*config.Page{
 					{
@@ -184,6 +191,13 @@ func TestProxyServeHTTP(t *testing.T) {
 						Proxy: config.PageProxy{
 							URL:        config.EnvValue(backend.URL),
 							SearchPath: test.searchPaths,
+						},
+						Bucket: config.BucketConfig{
+							URL:           config.EnvValue(s3Backend.URL),
+							Name:          "test",
+							ApplicationID: "test",
+							Secret:        "test",
+							Region:        "test",
 						},
 					},
 				},
@@ -214,16 +228,20 @@ func TestProxyServeHTTP(t *testing.T) {
 	}
 }
 
+const mockCommit = "6af8739ec3559ae35088b7d84748d15d4d440776"
+
 func setupMockServer(test *testProxyServer) *httptest.Server {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqPath, _ := strings.CutPrefix(r.URL.Path, fmt.Sprintf("/%s", mockCommit))
+
 		// Simulate backend behavior for search path resolution
 		if r.Method == http.MethodHead {
 			status := http.StatusNotFound
 
-			if r.URL.Path == test.requestPath {
+			if reqPath == test.requestPath {
 				status = test.requestPathResponse
 			} else {
-				if s, ok := test.searchPathResponses[r.URL.Path]; ok {
+				if s, ok := test.searchPathResponses[reqPath]; ok {
 					status = s
 				}
 			}
@@ -232,10 +250,10 @@ func setupMockServer(test *testProxyServer) *httptest.Server {
 		}
 
 		status := http.StatusNotFound
-		if r.URL.Path == test.requestPath {
+		if reqPath == test.requestPath {
 			status = test.requestPathResponse
 		} else {
-			if s, ok := test.searchPathResponses[r.URL.Path]; ok {
+			if s, ok := test.searchPathResponses[reqPath]; ok {
 				status = s
 			}
 		}
@@ -247,5 +265,59 @@ func setupMockServer(test *testProxyServer) *httptest.Server {
 			_, _ = w.Write([]byte("Hello from backend"))
 		}
 	}))
-	return backend
+}
+
+func setupMockS3(test *testProxyServer) *httptest.Server {
+
+	testIndex := fmt.Sprintf(`%s:
+    environment: main
+    branch: ""
+    date: 2025-05-04T18:13:45.715404+02:00
+`, mockCommit)
+
+	reader, size, err := writeAndOpenTempFile(testIndex)
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = reader.(io.Closer).Close() }()
+
+	s3Backend := s3mem.New()
+	err = s3Backend.CreateBucket("test")
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = s3Backend.PutObject("test", "index.yaml", nil, reader, size)
+	if err != nil {
+		panic(err)
+	}
+
+	faker := gofakes3.New(s3Backend, gofakes3.WithHostBucket(false))
+	return httptest.NewServer(faker.Server())
+}
+
+// writeAndOpenTempFile writes the string to a temp file and returns an io.Reader to read it back.
+func writeAndOpenTempFile(content string) (io.Reader, int64, error) {
+	tmpFile, err := os.CreateTemp("", "example-*.txt")
+	if err != nil {
+		return nil, 0, err
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.WriteString(content); err != nil {
+		return nil, 0, err
+	}
+
+	// Reopen for reading
+	fileReader, err := os.Open(tmpFile.Name())
+	if err != nil {
+		return nil, 0, err
+	}
+
+	stat, err := os.Stat(tmpFile.Name())
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return fileReader, stat.Size(), nil
 }

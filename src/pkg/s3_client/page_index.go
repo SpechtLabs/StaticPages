@@ -19,7 +19,7 @@ type PageIndexData struct {
 	repository  string
 }
 
-func NewPageCommitMetadata(repository, sha, environment, branch string, date time.Time) *PageIndexData {
+func NewPageCommitMetadata(repository, sha, branch, environment string, date time.Time) *PageIndexData {
 	return &PageIndexData{
 		repository:  repository,
 		sha:         sha,

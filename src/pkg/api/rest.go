@@ -20,8 +20,6 @@ import (
 )
 
 const (
-	issuer                       = "https://token.actions.githubusercontent.com"
-	expectedAudience             = "your-api" // <-- Set this to your configured audience
 	StatusRequestContextCanceled = 499
 )
 

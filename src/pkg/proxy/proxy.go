@@ -106,27 +106,40 @@ func (p *Proxy) Director(req *http.Request) {
 		return
 	}
 
-	// Find the actual html document we are looking for
-	lookupPath := path.Join(path.Clean(page.Proxy.Path.String()), path.Clean(page.Git.Repository))
-
-	sub, err := page.Domain.Subdomain(requestUrl)
-	if sub == "" {
-		sub = page.Git.MainBranch
-	}
-
 	s3Client := s3_client.NewS3PageClient(page)
-	metadata, err := s3Client.DownloadMetadata(ctx)
+	metadata, err := s3Client.DownloadPageIndex(ctx)
 	if err != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get metadata", zap.Error(err), zap.String("domain", page.Domain.String()))
 	}
 
-	if sha, _, err := metadata.GetLatestForBranch(sub); err == nil {
+	// Find the actual html document we are looking for
+	lookupPath := path.Join(path.Clean(page.Proxy.Path.String()), path.Clean(page.Git.Repository))
+
+	sub, err := page.Domain.Subdomain(requestUrl)
+
+	if !page.Preview.Enabled || sub == "" {
+		sub = page.Git.MainBranch
+
+		sha, _, err := metadata.GetLatestForBranch(sub)
+		if err != nil {
+			otelzap.L().Sugar().Ctx(ctx).Errorw("could not find a commit to serve page for",
+				zap.String("request_url", requestUrl),
+				zap.String("domain", page.Domain.String()),
+				zap.String("branch", sub),
+			)
+			return
+		}
+
 		lookupPath = path.Join(lookupPath, path.Clean(sha))
-	} else if _, err := metadata.GetBySHA(sub); err == nil {
-		lookupPath = path.Join(lookupPath, path.Clean(sub))
 	} else {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("could not find a commit to serve page for", zap.String("request_url", requestUrl), zap.String("domain", page.Domain.String()))
-		return
+		if sha, _, err := metadata.GetLatestForBranch(sub); err == nil {
+			lookupPath = path.Join(lookupPath, path.Clean(sha))
+		} else if _, err := metadata.GetBySHA(sub); err == nil {
+			lookupPath = path.Join(lookupPath, path.Clean(sub))
+		} else {
+			otelzap.L().Sugar().Ctx(ctx).Errorw("could not find a commit to serve page for", zap.String("request_url", requestUrl), zap.String("domain", page.Domain.String()))
+			return
+		}
 	}
 
 	lookupPath = path.Join(lookupPath, path.Clean(originalPath))

@@ -100,7 +100,7 @@ func (c *S3PageClient) UploadFolder(ctx context.Context, source, target string) 
 	)
 
 	// Walk through directory recursively to collect all files
-	files := []string{}
+	files := make([]string, 0)
 	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			files = append(files, path)
@@ -233,7 +233,7 @@ func determineContentType(filePath string) string {
 	}
 }
 
-func (c *S3PageClient) UploadMetadata(ctx context.Context, metadata PageMetadata) humane.Error {
+func (c *S3PageClient) UploadPageIndex(ctx context.Context, metadata PageIndex) humane.Error {
 	ctx, span := c.tracer.Start(ctx, "s3Client.uploadMetadata")
 	defer span.End()
 
@@ -264,7 +264,7 @@ func (c *S3PageClient) UploadMetadata(ctx context.Context, metadata PageMetadata
 	return nil
 }
 
-func (c *S3PageClient) DownloadMetadata(ctx context.Context) (PageMetadata, humane.Error) {
+func (c *S3PageClient) DownloadPageIndex(ctx context.Context) (PageIndex, humane.Error) {
 	ctx, span := c.tracer.Start(ctx, "s3Client.downloadMetadata")
 	defer span.End()
 
@@ -276,7 +276,7 @@ func (c *S3PageClient) DownloadMetadata(ctx context.Context) (PageMetadata, huma
 		Key:    aws.String(s3Key),
 	})
 
-	metadata := make(PageMetadata)
+	metadata := make(PageIndex)
 
 	if err != nil {
 		if isNotFound(err) {
@@ -288,7 +288,7 @@ func (c *S3PageClient) DownloadMetadata(ctx context.Context) (PageMetadata, huma
 		return nil, humane.Wrap(err, "failed to download metadata from S3")
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {

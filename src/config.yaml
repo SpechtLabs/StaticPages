@@ -47,7 +47,7 @@ pages:
 #      '*':
 #        pattern: '{{ .RepoName }}.{{ .Domain }}'
 
-  - domain: specht.av0.de
+  - domain: gold-specht.av0.de
 
     # Configure the S3 bucket where the website is hosted in
     bucket:
@@ -68,26 +68,20 @@ pages:
 
     # Grant access to the repositories to use this domain
     git:
-      provider: github
+      provider: custom
       repository: Goldschmiede-Metallglanz/Goldschmiede-Metallglanz
       mainBranch: main
+      oidc:
+        issuer: https://token.actions.githubusercontent.com
+        claimMappings:
+          Repository: repository
+          Commit: sha
+          Branch: ref
+          Environment: environment
 
     # Configure preview-build sub domains
-    #
-    # {{ .CommitSha }}   - the exact commit SHA
-    # {{ .Environment }} - the Environment configured in GitHub
-    # {{ .Branch }}      - the branch name of a build
     preview:
       enabled: true
-      history: 5 # default retention for all patterns
-      domains:
-        - pattern: '{{ .Environment }}.{{ .Domain }}'
-          when: '{{ .Environment }}'  # Only applies if .Environment is set
-          history: 0
-
-        - pattern: '{{ .Branch }}.{{ .Domain }}'
-          when: '{{ .Branch }}'       # Only applies if .Branch is set and not "main"
-          history: 3
-
-        - pattern: '{{ .CommitSha }}.{{ .Domain }}'
-          history: 10
+      sha: true
+      environment: false
+      branch: true

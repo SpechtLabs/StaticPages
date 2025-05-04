@@ -1,12 +1,16 @@
 package api
 
 import (
+	"context"
 	"strings"
 
 	"github.com/SpechtLabs/StaticPages/pkg/config"
 )
 
-func (r *RestApi) extractPagesConfig(repo string) *config.Page {
+func (r *RestApi) extractPagesConfig(ctx context.Context, repo string) *config.Page {
+	ctx, span := r.tracer.Start(ctx, "restApi.extractPagesConfig")
+	defer span.End()
+
 	for _, page := range r.conf.Pages {
 		if page.Git.Repository == repo {
 			return page

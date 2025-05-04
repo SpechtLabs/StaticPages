@@ -2,15 +2,12 @@ package api
 
 import (
 	"context"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
+	"sync"
 
 	"github.com/SpechtLabs/StaticPages/pkg/s3_client"
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
@@ -30,8 +27,8 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 		return
 	}
 
-	// Get OIDC claims (and verify authentication)
-	claims, herr := r.extractAndVerifyAuth(ctx, ct.GetHeader("Authorization"))
+	// Get Repository Metadata claims (and verify authentication)
+	metadata, herr := r.extractAndVerifyAuth(ctx, ct.GetHeader("Authorization"))
 	if herr != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to extract or verify auth", zap.Error(herr), zap.Strings("advice", herr.Advice()), zap.String("cause", herr.Cause().Error()))
 		ct.JSON(http.StatusForbidden, gin.H{"error": "invalid authorization header"})
@@ -39,45 +36,40 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	}
 
 	// Get the Page Configuration
-	page := r.extractPagesConfig(claims.Repository)
+	page := r.extractPagesConfig(ctx, metadata.Repository())
 	if page == nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("repository not authorized", zap.String("repository", claims.Repository))
+		otelzap.L().Sugar().Ctx(ctx).Errorw("repository not authorized",
+			zap.String("repository", metadata.Repository()),
+		)
 		ct.JSON(http.StatusForbidden, gin.H{"error": "repository not authorized"})
 		return
 	}
 
 	// Parse uploaded files
-	form, err := ct.MultipartForm()
-	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to parse multipart form", zap.Error(err))
-		ct.JSON(http.StatusBadRequest, gin.H{"error": "invalid multipart form"})
-		return
-	}
-
-	span.SetAttributes(attribute.Int("file_count", len(form.File)))
-
-	uploadPath, fileCount, herr := r.saveArtifactsToTemp(ctx, ct, claims.Sha, form)
+	uploadPath, fileCount, size, herr := r.saveArtifactsToTemp(ctx, ct, metadata.SHA())
 	if herr != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to save artifacts to temp folder", zap.Error(herr))
+		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to save artifacts to temp folder",
+			zap.Error(herr),
+			zap.String("commit_sha", metadata.SHA()),
+		)
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save artifacts"})
 		return
 	}
+
+	span.SetAttributes(
+		attribute.Int("file_count", fileCount),
+		attribute.Int64("file_size", size),
+	)
 
 	s3client := s3_client.NewS3PageClient(page)
-	if herr != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to get s3 client", zap.Error(herr))
-		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save artifacts"})
-		return
-	}
-
-	herr = s3client.UploadFolder(ctx, uploadPath, filepath.Join(claims.Repository, claims.Sha))
+	herr = s3client.UploadFolder(ctx, uploadPath, filepath.Join(metadata.Repository(), metadata.SHA()))
 	if herr != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to upload artifacts to storage backend", zap.Error(herr))
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save artifacts"})
 		return
 	}
 
-	metadata, err := s3client.DownloadMetadata(ctx)
+	pageIndex, err := s3client.DownloadPageIndex(ctx)
 	if err != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get metadata", zap.Error(err), zap.String("domain", page.Domain.String()))
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update page metadata"})
@@ -85,13 +77,13 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	}
 
 	// Update our Page Metadata
-	metadata[claims.Sha] = &s3_client.PageCommitMetadata{
-		Environment: claims.Environment,
-		Branch:      claims.Branch(),
-		Date:        time.Now(),
-	}
+	pageIndex[metadata.SHA()] = metadata
 
-	herr = s3client.UploadMetadata(ctx, metadata)
+	span.SetAttributes(
+		attribute.Int("index_size", len(pageIndex)),
+	)
+
+	herr = s3client.UploadPageIndex(ctx, pageIndex)
 	if herr != nil {
 		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to update page metadata", zap.Error(herr))
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update page metadata"})
@@ -102,38 +94,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	ct.JSON(http.StatusOK, gin.H{"status": "upload successful", "file_count": fileCount})
 }
 
-func (r *RestApi) extractAndVerifyAuth(ctx context.Context, authHeader string) (*s3_client.GitHubClaims, humane.Error) {
-	ctx, span := r.tracer.Start(ctx, "restApi.extractAndVerifyAuth")
-	defer span.End()
-
-	// Create OIDC provider
-	provider, err := oidc.NewProvider(ctx, issuer)
-	if err != nil {
-		return nil, humane.Wrap(err, "failed to initialize OIDC provider", "Make sure the OIDC issuer is correctly configured and try again.")
-	}
-
-	// Extract and verify Authorization header
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		return nil, humane.New("missing or invalid Authorization header", "Make sure the Authorization header is correctly formatted and try again.")
-	}
-	rawToken := strings.TrimPrefix(authHeader, "Bearer ")
-
-	verifier := provider.VerifierContext(ctx, &oidc.Config{SkipClientIDCheck: true})
-	idToken, err := verifier.Verify(ctx, rawToken)
-	if err != nil {
-		return nil, humane.Wrap(err, "failed to verify OIDC token", "Make sure the Authorization header is correctly formatted and try again.")
-	}
-
-	// Extract GitHub Action OIDC Claims
-	claims := &s3_client.GitHubClaims{}
-	if err := idToken.Claims(claims); err != nil {
-		return nil, humane.Wrap(err, "failed to extract claims from token", "Make sure the Authorization header is correctly formatted and try again.")
-	}
-
-	return claims, nil
-}
-
-func (r *RestApi) saveArtifactsToTemp(ctx context.Context, ct *gin.Context, commitSha string, form *multipart.Form) (string, int, humane.Error) {
+func (r *RestApi) saveArtifactsToTemp(ctx context.Context, ct *gin.Context, commitSha string) (string, int, int64, humane.Error) {
 	ctx, span := r.tracer.Start(ctx, "restApi.saveArtifactsToTemp")
 	defer span.End()
 
@@ -142,7 +103,22 @@ func (r *RestApi) saveArtifactsToTemp(ctx context.Context, ct *gin.Context, comm
 
 	otelzap.L().Sugar().Ctx(ctx).Debugw("start saving artifacts", zap.String("path", uploadPath))
 
-	fileCount := 0
+	form, err := ct.MultipartForm()
+	if err != nil {
+		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to parse multipart form", zap.Error(err))
+		ct.JSON(http.StatusBadRequest, gin.H{"error": "invalid multipart form"})
+		return uploadPath, 0, 0, humane.Wrap(err, "failed to parse multipart form", "Make sure the request is correctly formatted and try again.")
+	}
+
+	var (
+		wg        sync.WaitGroup
+		errOnce   sync.Once
+		errResult humane.Error
+		countMu   sync.Mutex
+		fileCount int
+		size      int64
+	)
+
 	for key, files := range form.File {
 		relPath, ok := extractRelativePath(key)
 		if !ok {
@@ -150,19 +126,37 @@ func (r *RestApi) saveArtifactsToTemp(ctx context.Context, ct *gin.Context, comm
 		}
 
 		for _, file := range files {
-			dst := filepath.Join(uploadPath, relPath)
+			wg.Add(1)
+			file := file // capture loop var
 
-			if err := os.MkdirAll(filepath.Dir(dst), 0o775); err != nil {
-				return uploadPath, 0, humane.Wrap(err, "failed to create upload cache directory", "Make sure the upload cache directory is writable and try again.")
-			}
+			go func(relPath string) {
+				defer wg.Done()
 
-			if err := ct.SaveUploadedFile(file, dst); err != nil {
-				return uploadPath, 0, humane.Wrap(err, "failed to save file", "Make sure the upload cache directory is writable and try again.")
-			}
+				dst := filepath.Join(uploadPath, relPath)
 
-			fileCount++
+				if err := os.MkdirAll(filepath.Dir(dst), 0o775); err != nil {
+					errOnce.Do(func() {
+						errResult = humane.Wrap(err, "failed to create upload cache directory", "Make sure the upload cache directory is writable and try again.")
+					})
+					return
+				}
+
+				if err := ct.SaveUploadedFile(file, dst); err != nil {
+					errOnce.Do(func() {
+						errResult = humane.Wrap(err, "failed to save file", "Make sure the upload cache directory is writable and try again.")
+					})
+					return
+				}
+
+				countMu.Lock()
+				fileCount++
+				size += file.Size
+				countMu.Unlock()
+			}(relPath)
 		}
 	}
 
-	return uploadPath, fileCount, nil
+	wg.Wait()
+
+	return uploadPath, fileCount, size, errResult
 }

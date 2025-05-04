@@ -88,7 +88,7 @@ func (dm DomainMapper) GetMatchingDomain(domain string) DomainScope {
 		foundValidMatch bool
 	)
 
-	for matcher, _ := range dm {
+	for matcher := range dm {
 		if !matcher.Is(domain) {
 			continue
 		}

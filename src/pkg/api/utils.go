@@ -8,7 +8,7 @@ import (
 )
 
 func (r *RestApi) extractPagesConfig(ctx context.Context, repo string) *config.Page {
-	ctx, span := r.tracer.Start(ctx, "restApi.extractPagesConfig")
+	_, span := r.tracer.Start(ctx, "restApi.extractPagesConfig")
 	defer span.End()
 
 	for _, page := range r.conf.Pages {

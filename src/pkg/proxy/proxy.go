@@ -116,6 +116,10 @@ func (p *Proxy) Director(req *http.Request) {
 	lookupPath := path.Join(path.Clean(page.Proxy.Path.String()), path.Clean(page.Git.Repository))
 
 	sub, err := page.Domain.Subdomain(requestUrl)
+	if err != nil {
+		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse subdomain", zap.Error(err), zap.String("request_url", requestUrl))
+		return
+	}
 
 	if !page.Preview.Enabled || sub == "" {
 		sub = page.Git.MainBranch

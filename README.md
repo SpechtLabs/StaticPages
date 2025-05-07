@@ -3,10 +3,28 @@
 ## Components
 
 ```mermaid
-flowchart LR
-    A[GitHub Action] --> |Upload zip| B[API]
-    B -->|Extract content and upload| C(S3 Storage)
-    Router -->|Request content from| C
+graph TD
+    A[Client] -->|HTTP Request| B[StaticPages Service]
+    B -->|Domain Mapping| C[Domain Mapper]
+    B -->|Content Request| D[S3 Client]
+    B -->|API Requests| E[API Server]
+    B -->|Dynamic Content| F[Proxy Handler]
+    E -->|OIDC Verification| G[Auth Provider]
+    D -->|Storage| H[S3 Bucket]
+    
+    subgraph "Core Components"
+        B
+        C
+        D
+        E
+        F
+    end
+    
+    subgraph "External Services"
+        G
+        H
+    end
+
 ```
 
 ## High Level Overview

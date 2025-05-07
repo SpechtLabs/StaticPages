@@ -75,7 +75,7 @@ func (p *Proxy) Director(req *http.Request) {
 	defer span.End()
 
 	if ctx.Err() != nil {
-		otelzap.L().Sugar().Ctx(ctx).Warnw("request context canceled",
+		otelzap.L().Ctx(ctx).Warn("request context canceled",
 			zap.String("http.url", req.Host),
 			zap.String("http.path", req.URL.String()))
 		return
@@ -89,27 +89,27 @@ func (p *Proxy) Director(req *http.Request) {
 		var err error
 		requestUrl, _, err = net.SplitHostPort(req.Host)
 		if err != nil {
-			otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse request url", zap.Error(err), zap.String("request_url", req.Host))
+			otelzap.L().WithError(err).Ctx(ctx).Error("unable to parse request url", zap.String("request_url", req.Host))
 			return
 		}
 	}
 
 	page := p.pagesMap.Lookup(requestUrl)
 	if page == nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("no page found", zap.String("request_url", requestUrl))
+		otelzap.L().Ctx(ctx).Error("no page found", zap.String("request_url", requestUrl))
 		return
 	}
 
 	backendUrl, err := url.Parse(page.Proxy.URL.String())
 	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse proxy.url", zap.Error(err), zap.String("backend_url", page.Proxy.URL.String()))
+		otelzap.L().WithError(err).Ctx(ctx).Error("unable to parse proxy.url", zap.String("backend_url", page.Proxy.URL.String()))
 		return
 	}
 
 	s3Client := s3_client.NewS3PageClient(page)
 	metadata, err := s3Client.DownloadPageIndex(ctx)
 	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get metadata", zap.Error(err), zap.String("domain", page.Domain.String()))
+		otelzap.L().WithError(err).Ctx(ctx).Error("unable to get metadata", zap.String("domain", page.Domain.String()))
 	}
 
 	// Find the actual html document we are looking for
@@ -117,7 +117,7 @@ func (p *Proxy) Director(req *http.Request) {
 
 	sub, err := page.Domain.Subdomain(requestUrl)
 	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to parse subdomain", zap.Error(err), zap.String("request_url", requestUrl))
+		otelzap.L().WithError(err).Ctx(ctx).Error("unable to parse subdomain", zap.String("request_url", requestUrl))
 		return
 	}
 
@@ -126,7 +126,7 @@ func (p *Proxy) Director(req *http.Request) {
 
 		sha, _, err := metadata.GetLatestForBranch(sub)
 		if err != nil {
-			otelzap.L().Sugar().Ctx(ctx).Errorw("could not find a commit to serve page for",
+			otelzap.L().WithError(err).Ctx(ctx).Error("could not find a commit to serve page for",
 				zap.String("request_url", requestUrl),
 				zap.String("domain", page.Domain.String()),
 				zap.String("branch", sub),
@@ -141,7 +141,10 @@ func (p *Proxy) Director(req *http.Request) {
 		} else if _, err := metadata.GetBySHA(sub); err == nil {
 			lookupPath = path.Join(lookupPath, path.Clean(sub))
 		} else {
-			otelzap.L().Sugar().Ctx(ctx).Errorw("could not find a commit to serve page for", zap.String("request_url", requestUrl), zap.String("domain", page.Domain.String()))
+			otelzap.L().Ctx(ctx).Error("could not find a commit to serve page for",
+				zap.String("request_url", requestUrl),
+				zap.String("domain", page.Domain.String()),
+			)
 			return
 		}
 	}
@@ -154,9 +157,9 @@ func (p *Proxy) Director(req *http.Request) {
 		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, path.Clean(fmt.Sprintf("/%s/%s", page.Proxy.Path, page.Proxy.NotFound)))
 
 		if err404 == nil {
-			otelzap.L().Sugar().Ctx(ctx).Warnw("no path found", zap.String("request_path", originalPath))
+			otelzap.L().Ctx(ctx).Warn("no path found", zap.String("request_path", originalPath))
 		} else {
-			otelzap.L().Sugar().Ctx(ctx).Errorw("no path found", zap.Error(err), zap.String("request_path", originalPath))
+			otelzap.L().WithError(err).Ctx(ctx).Error("no path found", zap.String("request_path", originalPath))
 		}
 	}
 
@@ -180,7 +183,7 @@ func (p *Proxy) Director(req *http.Request) {
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	// Log the request transformation
-	otelzap.L().Sugar().Ctx(ctx).Debugw("transformed request",
+	otelzap.L().Ctx(ctx).Debug("transformed request",
 		zap.String("request_path", originalPath),
 		zap.String("backend_path", targetPath),
 		zap.String("backend_url", backendUrl.String()),
@@ -203,8 +206,7 @@ func (p *Proxy) ErrorHandler(w http.ResponseWriter, req *http.Request, err error
 		responseCode = api.StatusRequestContextCanceled // Nginx non-standard code for when a s3_client closes the connection
 	}
 
-	otelzap.L().Sugar().Ctx(ctx).Errorw("proxy error",
-		zap.Error(err),
+	otelzap.L().WithError(err).Ctx(ctx).Error("proxy error",
 		zap.String("request_url", req.Host),
 		zap.Int("http.code", responseCode))
 
@@ -221,15 +223,15 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 	defer span.End()
 
 	if r.StatusCode >= 300 {
-		if otelzap.L().Sugar().Desugar().Core().Enabled(zap.DebugLevel) {
+		if otelzap.L().Core().Enabled(zap.DebugLevel) {
 			dump, _ := httputil.DumpResponse(r, true)
 
-			otelzap.L().Sugar().Ctx(ctx).Debugw("received response",
+			otelzap.L().Ctx(ctx).Debug("received response",
 				zap.Int("http.code", r.StatusCode),
 				zap.String("request_url", r.Request.URL.String()),
 				zap.ByteString("body", dump))
 		} else {
-			otelzap.L().Sugar().Ctx(ctx).Infow("received response",
+			otelzap.L().Ctx(ctx).Info("received response",
 				zap.Int("http.code", r.StatusCode),
 				zap.String("request_url", r.Request.URL.String()))
 		}
@@ -258,7 +260,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		p.proxy.ServeHTTP(w, req)
 
 	default:
-		otelzap.L().Sugar().Ctx(ctx).Warnw("received invalid request",
+		otelzap.L().Ctx(ctx).Warn("received invalid request",
 			zap.String("http.method", req.Method),
 			zap.String("http.url", req.Host),
 			zap.String("http.path", req.URL.String()),
@@ -275,10 +277,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (p *Proxy) ServeAsync(addr string) {
 	go func() {
 		if err := p.Serve(addr); err != nil {
-			otelzap.L().Sugar().Fatalw("Unable to start proxy",
-				zap.String("error", err.Error()),
-				zap.Strings("advice", err.Advice()),
-				zap.String("cause", err.Cause().Error()))
+			otelzap.L().WithError(err).Fatal("Unable to start proxy")
 		}
 	}()
 }
@@ -286,8 +285,7 @@ func (p *Proxy) ServeAsync(addr string) {
 // Serve starts the reverse proxy server on the specified address and logs its startup state.
 // It returns a humane.Error if the server fails to start.
 func (p *Proxy) Serve(addr string) humane.Error {
-	otelzap.L().Sugar().Infow("starting reverse proxy",
-		zap.String("addr", addr))
+	otelzap.L().Info("starting reverse proxy", zap.String("addr", addr))
 
 	p.server = &http.Server{
 		Addr:    addr,
@@ -296,8 +294,7 @@ func (p *Proxy) Serve(addr string) humane.Error {
 
 	if err := p.server.ListenAndServe(); err != nil {
 		if strings.Contains(err.Error(), http.ErrServerClosed.Error()) {
-			otelzap.L().Sugar().Infow("proxy server stopped",
-				zap.String("addr", addr))
+			otelzap.L().Info("proxy server stopped", zap.String("addr", addr))
 			return nil
 		}
 		return humane.Wrap(err, "Unable to start proxy", "Make sure the proxy is not already running and try again.")
@@ -316,7 +313,7 @@ func (p *Proxy) Shutdown() humane.Error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
-	otelzap.L().Sugar().Info("shutting down proxy")
+	otelzap.L().Info("shutting down proxy")
 	if err := p.server.Shutdown(ctx); err != nil {
 		return humane.Wrap(err, "Unable to shutdown proxy", "Make sure the proxy is running and try again.")
 	}
@@ -339,7 +336,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url.String()+location, nil)
 	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to create request", zap.Error(err), zap.String("url", url.String()+location), zap.String("http.method", http.MethodHead))
+		otelzap.L().WithError(err).Ctx(ctx).Error("failed to create request", zap.String("url", url.String()+location), zap.String("http.method", http.MethodHead))
 		return http.StatusInternalServerError, err
 	}
 
@@ -350,8 +347,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	resp, err := client.Do(req)
 	if err != nil {
 		if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
-			otelzap.L().Sugar().Ctx(ctx).Errorw("failed to probe path",
-				zap.Error(err),
+			otelzap.L().WithError(err).Ctx(ctx).Error("failed to probe path",
 				zap.String("proxy_host", url.String()),
 				zap.String("target_path", location),
 			)
@@ -361,7 +357,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			otelzap.L().Sugar().Ctx(ctx).Errorw("failed to close response body", zap.Error(err))
+			otelzap.L().WithError(err).Ctx(ctx).Error("failed to close response body")
 		}
 	}(resp.Body)
 

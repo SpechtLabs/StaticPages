@@ -35,6 +35,7 @@ github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK3
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
+github.com/cevatbarisyilmaz/ara v0.0.4 h1:SGH10hXpBJhhTlObuZzTuFn1rrdmjQImITXnZVPSodc=
 github.com/cevatbarisyilmaz/ara v0.0.4/go.mod h1:BfFOxnUd6Mj6xmcvRxHN3Sr21Z1T3U2MYkYOmoQe4Ts=
 github.com/cloudwego/base64x v0.1.5 h1:XPciSp1xaq2VCSt6lF0phncD4koWyULpl5bUxbfCyP4=
 github.com/cloudwego/base64x v0.1.5/go.mod h1:0zlkT4Wn5C6NdauXdJRhSKRlJvmclQ1hhJgA0rcu/8w=
@@ -89,6 +90,7 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 h1:5ZPtiqj0JL5oKWmcsq4VMaAW5uk
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3/go.mod h1:ndYquD05frm2vACXE1nsccT4oJzjhw2arTS2cpUD1PI=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
+github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1/go.mod h1:L3OGu8Wl2/fWfCI6z80xFu9LTZmf1ZRjMHUOPmWr69U=
 github.com/johannesboyne/gofakes3 v0.0.0-20250402064820-d479899d8cbe h1:oc+3AXUeNlN53brf1JS91kMicMkLHPLHu7K9jSKlewU=
@@ -146,12 +148,10 @@ github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
-github.com/spechtlabs/go-otel-utils/otelprovider v0.0.3 h1:4oOesPI0xzLxlXkUJXbFWTU11sixh7fN8w9MYji89Jc=
-github.com/spechtlabs/go-otel-utils/otelprovider v0.0.3/go.mod h1:g4aR+dN5kWbCCOQW8VuO6XV/uN+lGSwi59Dk7fRtchk=
-github.com/spechtlabs/go-otel-utils/otelprovider v0.0.6 h1:ibQrJxWzcF0Ql9RyON9eDJzOVcHl/ImZ4lolXRXYn+s=
-github.com/spechtlabs/go-otel-utils/otelprovider v0.0.6/go.mod h1:KYCRZw2eZJIUBd66Q0peZy3UwX+OBWEAN8mEIU9Xguo=
-github.com/spechtlabs/go-otel-utils/otelzap v0.0.6 h1:nCSqGF0phhIZCtF53YUgwfGVUhkFvyZv42xztioNSyw=
-github.com/spechtlabs/go-otel-utils/otelzap v0.0.6/go.mod h1:wYDKgGeOKyK5PVB+tfvkZovHm9VP6zEn+osJdKmepX8=
+github.com/spechtlabs/go-otel-utils/otelprovider v0.0.8 h1:QE5n0ReT+dpMGyJH1z8RD5GrzkxF3ZsYwNcrUJw6nPA=
+github.com/spechtlabs/go-otel-utils/otelprovider v0.0.8/go.mod h1:eXwaYnplhrfg/WXkIQ8ziC68Xa4wR7C0RilMBVpU9nM=
+github.com/spechtlabs/go-otel-utils/otelzap v0.0.8 h1:L+FRP4r8n0iVVzy9W7fVUATsx7wJFxLF87k06cpYI6A=
+github.com/spechtlabs/go-otel-utils/otelzap v0.0.8/go.mod h1:plilkxj0HQ5sJ21FuCc88wk8Q00cTH2M/LbxszaemPw=
 github.com/spf13/afero v1.2.1/go.mod h1:9ZxEEn6pIJ8Rxe320qSDBk6AsU0r9pR7Q4OcevTdifk=
 github.com/spf13/afero v1.14.0 h1:9tH6MapGnn/j0eb0yIXiLjERO8RB6xIVZRDCX7PtqWA=
 github.com/spf13/afero v1.14.0/go.mod h1:acJQ8t0ohCGuMN3O+Pv0V0hgMxNYDlvdk+VTfyZmbYo=

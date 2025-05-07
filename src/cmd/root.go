@@ -99,7 +99,7 @@ var RootCmd = &cobra.Command{
 				herr := humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
 				panic(herr)
 			}
-			otelzap.L().Sugar().Debugw("Config file used", zap.String("config_file", string(file)))
+			otelzap.L().Debug("Config file used", zap.String("config_file", string(file)))
 		}
 
 		if !serveApi && !serveProxy {

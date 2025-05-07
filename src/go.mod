@@ -15,8 +15,8 @@ require (
 	github.com/johannesboyne/gofakes3 v0.0.0-20250402064820-d479899d8cbe
 	github.com/mcuadros/go-gin-prometheus v0.1.0
 	github.com/sierrasoftworks/humane-errors-go v0.0.0-20241125132722-d032d7dd359e
-	github.com/spechtlabs/go-otel-utils/otelprovider v0.0.6
-	github.com/spechtlabs/go-otel-utils/otelzap v0.0.6
+	github.com/spechtlabs/go-otel-utils/otelprovider v0.0.8
+	github.com/spechtlabs/go-otel-utils/otelzap v0.0.8
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0

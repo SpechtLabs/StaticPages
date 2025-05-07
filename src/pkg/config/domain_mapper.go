@@ -14,11 +14,11 @@ func NewDomainMapperFromPages(pages []*Page) DomainMapper {
 	pagesMap := make(DomainMapper)
 	for _, page := range pages {
 		if pagesMap[page.Domain] != nil {
-			otelzap.L().Sugar().Warnw("duplicate page domain", zap.String("domain", page.Domain.String()))
+			otelzap.L().Warn("duplicate page domain", zap.String("domain", page.Domain.String()))
 		}
 
 		if p := pagesMap.Lookup(page.Domain.String()); p != nil {
-			otelzap.L().Sugar().Warnw("nested page domains configured!",
+			otelzap.L().Warn("nested page domains configured!",
 				zap.String("domain", page.Domain.String()),
 				zap.String("is_child_of", p.Domain.String()),
 			)

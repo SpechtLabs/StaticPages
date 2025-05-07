@@ -93,7 +93,7 @@ func (c *S3PageClient) UploadFolder(ctx context.Context, source, target string) 
 	ctx, span := c.tracer.Start(ctx, "s3Client.uploadArtifactsToS3")
 	defer span.End()
 
-	otelzap.L().Sugar().Ctx(ctx).Debugw("start uploading artifacts to s3",
+	otelzap.L().Ctx(ctx).Debug("start uploading artifacts to s3",
 		zap.String("bucket", c.s3BucketName),
 		zap.String("source_folder", source),
 		zap.String("target_folder", target),

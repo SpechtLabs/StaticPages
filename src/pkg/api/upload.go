@@ -22,7 +22,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	defer span.End()
 
 	if ctx.Err() != nil {
-		otelzap.L().Sugar().Ctx(ctx).Warnw("request context canceled")
+		otelzap.L().Ctx(ctx).Warn("request context canceled")
 		ct.AbortWithStatus(StatusRequestContextCanceled)
 		return
 	}
@@ -30,7 +30,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	// Get Repository Metadata claims (and verify authentication)
 	metadata, herr := r.extractAndVerifyAuth(ctx, ct.GetHeader("Authorization"))
 	if herr != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to extract or verify auth", zap.Error(herr), zap.Strings("advice", herr.Advice()), zap.String("cause", herr.Cause().Error()))
+		otelzap.L().WithError(herr).Ctx(ctx).Error("failed to extract or verify auth")
 		ct.JSON(http.StatusForbidden, gin.H{"error": "invalid authorization header"})
 		return
 	}
@@ -38,9 +38,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	// Get the Page Configuration
 	page := r.extractPagesConfig(ctx, metadata.Repository())
 	if page == nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("repository not authorized",
-			zap.String("repository", metadata.Repository()),
-		)
+		otelzap.L().Ctx(ctx).Error("repository not authorized", zap.String("repository", metadata.Repository()))
 		ct.JSON(http.StatusForbidden, gin.H{"error": "repository not authorized"})
 		return
 	}
@@ -48,10 +46,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	// Parse uploaded files
 	uploadPath, fileCount, size, herr := r.saveArtifactsToTemp(ctx, ct, metadata.SHA())
 	if herr != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to save artifacts to temp folder",
-			zap.Error(herr),
-			zap.String("commit_sha", metadata.SHA()),
-		)
+		otelzap.L().WithError(herr).Ctx(ctx).Error("failed to save artifacts to temp folder", zap.String("commit_sha", metadata.SHA()))
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save artifacts"})
 		return
 	}
@@ -64,14 +59,14 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	s3client := s3_client.NewS3PageClient(page)
 	herr = s3client.UploadFolder(ctx, uploadPath, filepath.Join(metadata.Repository(), metadata.SHA()))
 	if herr != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to upload artifacts to storage backend", zap.Error(herr))
+		otelzap.L().WithError(herr).Ctx(ctx).Error("failed to upload artifacts to storage backend")
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save artifacts"})
 		return
 	}
 
 	pageIndex, err := s3client.DownloadPageIndex(ctx)
 	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("unable to get metadata", zap.Error(err), zap.String("domain", page.Domain.String()))
+		otelzap.L().WithError(err).Ctx(ctx).Error("unable to get metadata", zap.String("domain", page.Domain.String()))
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update page metadata"})
 		return
 	}
@@ -85,7 +80,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 
 	herr = s3client.UploadPageIndex(ctx, pageIndex)
 	if herr != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to update page metadata", zap.Error(herr))
+		otelzap.L().WithError(herr).Ctx(ctx).Error("failed to update page metadata")
 		ct.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update page metadata"})
 		return
 	}
@@ -101,11 +96,11 @@ func (r *RestApi) saveArtifactsToTemp(ctx context.Context, ct *gin.Context, comm
 	tempDir := os.TempDir()
 	uploadPath := filepath.Join(tempDir, commitSha)
 
-	otelzap.L().Sugar().Ctx(ctx).Debugw("start saving artifacts", zap.String("path", uploadPath))
+	otelzap.L().Ctx(ctx).Debug("start saving artifacts", zap.String("path", uploadPath))
 
 	form, err := ct.MultipartForm()
 	if err != nil {
-		otelzap.L().Sugar().Ctx(ctx).Errorw("failed to parse multipart form", zap.Error(err))
+		otelzap.L().WithError(err).Ctx(ctx).Error("failed to parse multipart form")
 		ct.JSON(http.StatusBadRequest, gin.H{"error": "invalid multipart form"})
 		return uploadPath, 0, 0, humane.Wrap(err, "failed to parse multipart form", "Make sure the request is correctly formatted and try again.")
 	}

@@ -82,17 +82,14 @@ func NewRestApi(conf config.StaticPagesConfig) *RestApi {
 func (r *RestApi) ServeAsync(addr string) {
 	go func() {
 		if err := r.Serve(addr); err != nil {
-			otelzap.L().Sugar().Fatalw("Unable to start proxy",
-				zap.String("error", err.Error()),
-				zap.Strings("advice", err.Advice()),
-				zap.String("cause", err.Cause().Error()))
+			otelzap.L().WithError(err).Fatal("Unable to start proxy")
 		}
 	}()
 }
 
 // Serve starts the REST API Server on the specified address and returns a humane.Error if any issue occurs during startup.
 func (r *RestApi) Serve(addr string) humane.Error {
-	otelzap.L().Sugar().Infow("Starting REST API Server", zap.String("address", addr))
+	otelzap.L().Info("Starting REST API Server", zap.String("address", addr))
 
 	// configure the HTTP Server
 	r.srv = &http.Server{
@@ -102,8 +99,7 @@ func (r *RestApi) Serve(addr string) humane.Error {
 
 	if err := r.srv.ListenAndServe(); err != nil {
 		if strings.Contains(err.Error(), http.ErrServerClosed.Error()) {
-			otelzap.L().Sugar().Infow("API server stopped",
-				zap.String("addr", r.srv.Addr))
+			otelzap.L().Info("API server stopped", zap.String("addr", r.srv.Addr))
 			return nil
 		}
 
@@ -123,7 +119,7 @@ func (r *RestApi) Shutdown() humane.Error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
-	otelzap.L().Sugar().Info("shutting down proxy")
+	otelzap.L().Info("shutting down proxy")
 	if err := r.srv.Shutdown(ctx); err != nil {
 		return humane.Wrap(err, "Unable to shutdown api server", "Make sure the api server is running and try again.")
 	}

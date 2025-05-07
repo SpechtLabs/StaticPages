@@ -46,16 +46,13 @@ var serveCmd = &cobra.Command{
 		}
 
 		viper.OnConfigChange(func(e fsnotify.Event) {
-			otelzap.L().Sugar().Infow("Config file change detected. Reloading", zap.String("filename", e.Name))
+			otelzap.L().Info("Config file change detected. Reloading", zap.String("filename", e.Name))
 
 			readConfig()
 
 			if serveApi {
 				if err := a.Shutdown(); err != nil {
-					otelzap.L().Sugar().Fatalw("Unable to shutdown api",
-						zap.Error(err),
-						zap.Strings("advice", err.Advice()),
-						zap.String("cause", err.Cause().Error()))
+					otelzap.L().WithError(err).Fatal("Unable to shutdown api")
 					return
 				}
 
@@ -65,10 +62,7 @@ var serveCmd = &cobra.Command{
 
 			if serveProxy {
 				if err := p.Shutdown(); err != nil {
-					otelzap.L().Sugar().Fatalw("Unable to shutdown proxy",
-						zap.Error(err),
-						zap.Strings("advice", err.Advice()),
-						zap.String("cause", err.Cause().Error()))
+					otelzap.L().WithError(err).Fatal("Unable to shutdown proxy")
 					return
 				}
 
@@ -84,10 +78,7 @@ var serveCmd = &cobra.Command{
 
 		if serveProxy {
 			if err := p.Shutdown(); err != nil {
-				otelzap.L().Sugar().Fatalw("Unable to shutdown proxy",
-					zap.Error(err),
-					zap.Strings("advice", err.Advice()),
-					zap.String("cause", err.Cause().Error()))
+				otelzap.L().WithError(err).Fatal("Unable to shutdown proxy")
 				return
 			}
 		}

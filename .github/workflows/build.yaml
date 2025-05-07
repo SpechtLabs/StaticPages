@@ -47,7 +47,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - name: GolangCI Lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
           working-directory: src/
           version: latest

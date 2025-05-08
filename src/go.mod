@@ -14,7 +14,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/johannesboyne/gofakes3 v0.0.0-20250402064820-d479899d8cbe
 	github.com/mcuadros/go-gin-prometheus v0.1.0
-	github.com/sierrasoftworks/humane-errors-go v0.0.0-20241125132722-d032d7dd359e
+	github.com/sierrasoftworks/humane-errors-go v0.0.0-20250507223502-4bb667dc1e16
 	github.com/spechtlabs/go-otel-utils/otelprovider v0.0.8
 	github.com/spechtlabs/go-otel-utils/otelzap v0.0.8
 	github.com/spf13/cobra v1.9.1

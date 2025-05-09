@@ -144,6 +144,8 @@ github.com/sagikazarmark/locafero v0.9.0 h1:GbgQGNtTrEmddYDSAH9QLRyfAHY12md+8YFT
 github.com/sagikazarmark/locafero v0.9.0/go.mod h1:UBUyz37V+EdMS3hDF3QWIiVr/2dPrx49OMO0Bn0hJqk=
 github.com/sierrasoftworks/humane-errors-go v0.0.0-20241125132722-d032d7dd359e h1:TRjhbclA0br24WOCSltVovqcwOLTKRLRzQmuSBY5mQc=
 github.com/sierrasoftworks/humane-errors-go v0.0.0-20241125132722-d032d7dd359e/go.mod h1:j7jIbd4vmh7c8kUuM4wNOqqEaMcG+UWVyem6d26pai4=
+github.com/sierrasoftworks/humane-errors-go v0.0.0-20250507223502-4bb667dc1e16 h1:9vtY3febGroV+aPR5OlI3fekkesi+lMVsVWyxBp/rfk=
+github.com/sierrasoftworks/humane-errors-go v0.0.0-20250507223502-4bb667dc1e16/go.mod h1:CbJLj9L1qHdzLg4YRh2Lzr0noe9pR6QrVEqfLbITRKw=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=

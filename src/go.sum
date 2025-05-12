@@ -154,6 +154,8 @@ github.com/spechtlabs/go-otel-utils/otelprovider v0.0.8 h1:QE5n0ReT+dpMGyJH1z8RD
 github.com/spechtlabs/go-otel-utils/otelprovider v0.0.8/go.mod h1:eXwaYnplhrfg/WXkIQ8ziC68Xa4wR7C0RilMBVpU9nM=
 github.com/spechtlabs/go-otel-utils/otelprovider v0.0.9 h1:DcXCVRER/bo//4uMFOiF+b+El22EuwA7/ZiqVYAuadY=
 github.com/spechtlabs/go-otel-utils/otelprovider v0.0.9/go.mod h1:eXwaYnplhrfg/WXkIQ8ziC68Xa4wR7C0RilMBVpU9nM=
+github.com/spechtlabs/go-otel-utils/otelprovider v0.0.10 h1:Q5p+5KGA587GfzR6FdXGje4XBfxhi1u4NSu6lSnWCGA=
+github.com/spechtlabs/go-otel-utils/otelprovider v0.0.10/go.mod h1:sFuJXEBbNq/pQx9pP5OnVtx9yGJnH4fXi7x3qihW0ak=
 github.com/spechtlabs/go-otel-utils/otelzap v0.0.8 h1:L+FRP4r8n0iVVzy9W7fVUATsx7wJFxLF87k06cpYI6A=
 github.com/spechtlabs/go-otel-utils/otelzap v0.0.8/go.mod h1:plilkxj0HQ5sJ21FuCc88wk8Q00cTH2M/LbxszaemPw=
 github.com/spechtlabs/go-otel-utils/otelzap v0.0.9 h1:d1+B4hsaQpYiJOOTY0c0O20YLOH8dfAlve1ciCdoETQ=

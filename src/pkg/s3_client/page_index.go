@@ -41,7 +41,7 @@ func (m *PageIndexData) SHA() string {
 func (c PageIndex) GetBySHA(sha string) (*PageIndexData, humane.Error) {
 	entry, exists := c[sha]
 	if !exists {
-		return nil, humane.New("metadata not found in cache")
+		return nil, humane.New("metadata not found in index")
 	}
 
 	return entry, nil
@@ -55,5 +55,5 @@ func (c PageIndex) GetLatestForBranch(branch string) (string, *PageIndexData, hu
 		}
 	}
 
-	return "", nil, humane.New("branch not found in cache")
+	return "", nil, humane.New("branch not found in index")
 }

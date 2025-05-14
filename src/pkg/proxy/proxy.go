@@ -106,8 +106,7 @@ func (p *Proxy) Director(req *http.Request) {
 		return
 	}
 
-	s3Client := s3_client.NewS3PageClient(page)
-	metadata, err := s3Client.DownloadPageIndex(ctx)
+	metadata, err := s3_client.GetPageMetadata(ctx, page)
 	if err != nil {
 		otelzap.L().WithError(err).Ctx(ctx).Error("unable to get metadata", zap.String("domain", page.Domain.String()))
 	}
@@ -219,6 +218,7 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 		attribute.String("http.method", r.Request.Method),
 		attribute.String("http.url", r.Request.Host),
 		attribute.String("proxy_url", r.Request.URL.String()),
+		attribute.Int64("content_length", r.ContentLength),
 	))
 	defer span.End()
 

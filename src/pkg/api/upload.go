@@ -85,6 +85,9 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 		return
 	}
 
+	// Invalidate the cache immediately (useful if we're running "all in one")
+	s3_client.InvalidatePageMetadata(page)
+
 	span.SetStatus(codes.Ok, "")
 	ct.JSON(http.StatusOK, gin.H{"status": "upload successful", "file_count": fileCount})
 }

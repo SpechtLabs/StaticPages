@@ -31,15 +31,12 @@ func init() {
 		switch reason {
 		case ttlcache.EvictionReasonExpired:
 			otelzap.L().Ctx(ctx).Debug("Page metadata expired", zap.String("domain", item.Key().String()))
-			break
 
 		case ttlcache.EvictionReasonDeleted:
 			otelzap.L().Ctx(ctx).Debug("Page metadata deleted", zap.String("domain", item.Key().String()))
-			break
 
 		case ttlcache.EvictionReasonCapacityReached:
 			otelzap.L().Ctx(ctx).Warn("Page metadata cache capacity reached", zap.String("domain", item.Key().String()))
-			break
 		}
 	})
 

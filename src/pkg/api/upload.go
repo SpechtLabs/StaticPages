@@ -36,9 +36,9 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	}
 
 	// Get the Page Configuration
-	page := r.extractPagesConfig(ctx, metadata.Repository())
-	if page == nil {
-		otelzap.L().Ctx(ctx).Error("repository not authorized", zap.String("repository", metadata.Repository()))
+	page, herr := r.extractPagesConfig(ctx, metadata.Repository())
+	if herr != nil {
+		otelzap.L().WithError(herr).Ctx(ctx).Error("repository not authorized", zap.String("repository", metadata.Repository()))
 		ct.JSON(http.StatusForbidden, gin.H{"error": "repository not authorized"})
 		return
 	}

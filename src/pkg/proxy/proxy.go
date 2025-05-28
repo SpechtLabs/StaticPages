@@ -148,12 +148,12 @@ func (p *Proxy) Director(req *http.Request) {
 		}
 	}
 
-	lookupPath = path.Join(lookupPath, path.Clean(originalPath))
-
-	targetPath, err := p.lookupPath(ctx, page, requestUrl, backendUrl, lookupPath)
+	lookupRequestPath := path.Join(lookupPath, path.Clean(originalPath))
+	targetPath, err := p.lookupPath(ctx, page, requestUrl, backendUrl, lookupRequestPath)
 	if err != nil {
 		var err404 humane.Error
-		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, path.Clean(fmt.Sprintf("/%s/%s", page.Proxy.Path, page.Proxy.NotFound)))
+		lookupRequestPath := path.Join(lookupPath, path.Clean(page.Proxy.NotFound))
+		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, lookupRequestPath)
 
 		if err404 == nil {
 			otelzap.L().Ctx(ctx).Warn("no path found", zap.String("request_path", originalPath))

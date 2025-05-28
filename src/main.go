@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/SpechtLabs/StaticPages/cmd"
+	"github.com/gin-gonic/gin"
 	"github.com/spechtlabs/go-otel-utils/otelprovider"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/spf13/cobra"
@@ -45,8 +46,10 @@ func main() {
 	var err error
 	if debug {
 		zapLogger, err = zap.NewDevelopment()
+		gin.SetMode(gin.DebugMode)
 	} else {
 		zapLogger, err = zap.NewProduction()
+		gin.SetMode(gin.ReleaseMode)
 	}
 	if err != nil {
 		fmt.Printf("failed to initialize logger: %v", err)

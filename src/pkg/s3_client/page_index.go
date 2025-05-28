@@ -49,11 +49,21 @@ func (c PageIndex) GetBySHA(sha string) (*PageIndexData, humane.Error) {
 
 // GetLatestForBranch returns the metadata for the latest commit on a specific branch
 func (c PageIndex) GetLatestForBranch(branch string) (string, *PageIndexData, humane.Error) {
+	var latestSHA string
+	var latestData *PageIndexData
+
 	for sha, entry := range c {
 		if entry.Branch == branch {
-			return sha, entry, nil
+			if latestData == nil || entry.Date.After(latestData.Date) {
+				latestSHA = sha
+				latestData = entry
+			}
 		}
 	}
 
-	return "", nil, humane.New("branch not found in index")
+	if latestData == nil {
+		return "", nil, humane.New("branch not found in index")
+	}
+
+	return latestSHA, latestData, nil
 }

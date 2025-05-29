@@ -110,7 +110,7 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	ct.JSON(http.StatusOK, gin.H{
 		"status":      "upload successful",
 		"file_count":  fileCount,
-		"url":         domain,
+		"url":         fmt.Sprintf("https://%s", domain),
 		"preview_url": previewUrls,
 	})
 }

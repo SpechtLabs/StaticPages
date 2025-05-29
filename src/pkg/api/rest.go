@@ -60,9 +60,9 @@ func NewRestApi(conf config.StaticPagesConfig) *RestApi {
 			}
 
 			// log trace and span ID
-			if trace.SpanFromContext(c.Request.Context()).SpanContext().IsValid() {
-				fields = append(fields, zap.String("trace_id", trace.SpanFromContext(c.Request.Context()).SpanContext().TraceID().String()))
-				fields = append(fields, zap.String("span_id", trace.SpanFromContext(c.Request.Context()).SpanContext().SpanID().String()))
+			if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
+				fields = append(fields, zap.String("trace_id", spanContext.TraceID().String()))
+				fields = append(fields, zap.String("span_id", spanContext.SpanID().String()))
 			}
 			return fields
 		},

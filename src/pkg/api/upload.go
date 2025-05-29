@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/SpechtLabs/StaticPages/pkg/config"
 	"github.com/SpechtLabs/StaticPages/pkg/s3_client"
 	"github.com/gin-gonic/gin"
 	"github.com/sierrasoftworks/humane-errors-go"
@@ -89,29 +90,12 @@ func (r *RestApi) UploadHandler(ct *gin.Context) {
 	// Invalidate the cache immediately (useful if we're running "all in one")
 	s3_client.InvalidatePageMetadata(page)
 
-	// Get the Preview URL(s)
-	domain := page.Domain.String()
-	previewUrls := make([]string, 0)
-	if page.Preview.Enabled {
-		if page.Preview.Branch {
-			previewUrls = append(previewUrls, fmt.Sprintf("https://%s.%s", metadata.Branch, domain))
-		}
-
-		if page.Preview.CommitSha {
-			previewUrls = append(previewUrls, fmt.Sprintf("https://%s.%s", metadata.SHA(), domain))
-		}
-
-		if page.Preview.Environments {
-			previewUrls = append(previewUrls, fmt.Sprintf("https://%s.%s", metadata.Environment, domain))
-		}
-	}
-
 	span.SetStatus(codes.Ok, "")
 	ct.JSON(http.StatusOK, gin.H{
 		"status":      "upload successful",
 		"file_count":  fileCount,
-		"url":         fmt.Sprintf("https://%s", domain),
-		"preview_url": previewUrls,
+		"url":         fmt.Sprintf("https://%s", page.Domain.String()),
+		"preview_url": getPreviewUrls(page, metadata),
 	})
 }
 
@@ -179,4 +163,25 @@ func (r *RestApi) saveArtifactsToTemp(ctx context.Context, ct *gin.Context, comm
 
 	wg.Wait()
 	return uploadPath, fileCount, size, errResult
+}
+
+func getPreviewUrls(page *config.Page, metadata *s3_client.PageIndexData) []string {
+	previewUrls := make([]string, 0)
+	if !page.Preview.Enabled {
+		return previewUrls
+	}
+
+	if page.Preview.Branch && page.Git.MainBranch != metadata.Branch {
+		previewUrls = append(previewUrls, fmt.Sprintf("https://%s.%s", metadata.Branch, page.Domain.String()))
+	}
+
+	if page.Preview.CommitSha {
+		previewUrls = append(previewUrls, fmt.Sprintf("https://%s.%s", metadata.SHA(), page.Domain.String()))
+	}
+
+	if page.Preview.Environments {
+		previewUrls = append(previewUrls, fmt.Sprintf("https://%s.%s", metadata.Environment, page.Domain.String()))
+	}
+
+	return previewUrls
 }

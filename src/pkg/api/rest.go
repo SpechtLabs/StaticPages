@@ -40,13 +40,16 @@ func NewRestApi(conf config.StaticPagesConfig) *RestApi {
 	}
 
 	// Setup Gin router
-	router := gin.New(func(e *gin.Engine) {})
+	r.router = gin.New(func(e *gin.Engine) {})
+
+	// Setup Routes
+	r.router.POST("/api/upload", r.UploadHandler)
 
 	// Setup otelgin to expose Open Telemetry
-	router.Use(otelgin.Middleware("StaticPages-API"))
+	r.router.Use(otelgin.Middleware("StaticPages-API"))
 
 	// Setup ginzap to log everything correctly to zap
-	router.Use(ginzap.GinzapWithConfig(otelzap.L(), &ginzap.Config{
+	r.router.Use(ginzap.GinzapWithConfig(otelzap.L(), &ginzap.Config{
 		UTC:        true,
 		TimeFormat: time.RFC3339,
 		Context: func(c *gin.Context) []zapcore.Field {
@@ -66,13 +69,8 @@ func NewRestApi(conf config.StaticPagesConfig) *RestApi {
 	}))
 
 	// Set-up Prometheus to expose prometheus metrics
-	p := ginprometheus.NewPrometheus("conf_room_display")
-	p.Use(router)
-
-	router.POST("/upload", r.UploadHandler)
-	router.PUT("/activate", r.Activate)
-
-	r.router = router
+	p := ginprometheus.NewPrometheus("staticpages")
+	p.Use(r.router)
 
 	return r
 }
@@ -125,8 +123,4 @@ func (r *RestApi) Shutdown() humane.Error {
 	}
 
 	return nil
-}
-
-func (r *RestApi) Activate(ct *gin.Context) {
-	panic("yet to implement")
 }

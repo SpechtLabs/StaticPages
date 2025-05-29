@@ -86,7 +86,7 @@ jobs:
       - name: Download Artifacts for Website
         uses: actions/download-artifact@v4
         with:
-          name: site
+          name: docs
           path: ./dist
 
       - name: Upload to Static Pages

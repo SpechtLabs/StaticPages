@@ -1,10 +1,18 @@
-# Server
+---
+title: Server Configuration
+createTime: 2025/04/01 00:08:53
+permalink: /config/server
+---
 
-Calendar API uses a `yaml` configuration file allowing you to specify your server-settings, iCal calendars to subscribe,
-as well as rules that are applied to calendar events.
+CalendarAPI uses a single `config.yaml` file to define all runtime settings, including server ports, subscribed calendars, and event rules.
 
-::: tip
-You can place your `config.yaml` file in one of the following directories, that CalendarAPI looks up in the same order:
+This page describes the configuration options available in the `server` section of the config.
+
+---
+
+## Config File Locations
+
+CalendarAPI searches for `config.yaml` in the following order:
 
 <FileTree>
 
@@ -12,29 +20,33 @@ You can place your `config.yaml` file in one of the following directories, that 
   - config.yaml
   - calendarapi (binary)
 - ~/
-    - .config/
-        - calendarapi/
-            - config.yaml
+  - .config/
+    - calendarapi/
+      - config.yaml
 - /data/
-    - config.yaml
+  - config.yaml
 
 </FileTree>
 
-:::
+Place your config file in one of these locations to have it automatically picked up.
 
-## Server Config
+---
 
-In the `server` section of your config file, you can specify the following parameters:
+## Server Parameters
 
-| Key        | Type            | Description                                                                                                                                                                               |
-|:-----------|:----------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `host`     | `string`        | The Server Address to bind to (when using `serve`) or connect to (when using the CLI as client). **Note:** Does not support hot-reloading of the config during runtime. Requires restart. |
-| `httpPort` | `int`           | The REST API Port (_Default:_ `8099`). **Note:** Does not support hot-reloading of the config during runtime. Requires restart.                                                           |
-| `grpcPort` | `int`           | The gRPC API Port (_Default:_ `50051`). **Note:** Does not support hot-reloading of the config during runtime. Requires restart.                                                          |
-| `debug`    | `int`           | Enable debug settings (_Default:_ `false`)                                                                                                                                                |
-| `refresh`  | `time.Duration` | How often the iCal calendars are refreshed (_Default:_ `30m`)                                                                                                                             | 
+These settings control the behavior of the CalendarAPI server.
 
-### Example (Server)
+| Key        | Type            | Required | Description                                                                                  |
+|------------|-----------------|----------|----------------------------------------------------------------------------------------------|
+| `host`     | string           | no       | The address to bind to (in server mode) or connect to (in client mode).                     |
+| `httpPort` | integer          | no       | Port to expose the REST API. Default is `8099`. Requires restart if changed.                |
+| `grpcPort` | integer          | no       | Port to expose the gRPC API. Default is `50051`. Requires restart if changed.               |
+| `debug`    | boolean          | no       | Enables verbose debug logging. Default is `false`.                                          |
+| `refresh`  | time.Duration    | no       | How often CalendarAPI refreshes calendars. Default is `30m`. Accepts Go duration strings.   |
+
+---
+
+## Example Configuration (Server Mode)
 
 ```yaml
 server:
@@ -45,9 +57,22 @@ server:
   refresh: 5m
 ```
 
-### Example (Client)
+---
+
+## Example Configuration (Client Mode)
+
+When using the `calendarapi` CLI as a client, only the `host` and `debug` options are needed:
+
 ```yaml
 server:
   host: "homeassistant.local"
   debug: false
 ```
+
+---
+
+## Notes
+
+- Changes to `host`, `httpPort`, or `grpcPort` require restarting the CalendarAPI process.
+- `refresh` accepts Go-style durations such as `5m`, `1h`, or `30s`.
+- If no `host` is set in client mode, you must use the `--server` flag to specify a target server.

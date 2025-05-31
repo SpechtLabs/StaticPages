@@ -1,27 +1,62 @@
-# Calendars
+---
+title: Calendars
+createTime: 2025/04/01 00:08:53
+permalink: /config/calendars
+---
 
-The `calendars` config specifies an array of calendars you want to subscribe to.
-Calendars can either be read from an URL, or from the file-system. Each calendar needs an unique name
+The `calendars` section defines which iCal calendar sources CalendarAPI should load.  
+Each calendar must have a unique name and specify where its `.ics` file should be retrieved from.
 
-| Key        | Type         | Description                                           |
-|:-----------|:-------------|:------------------------------------------------------|
-| `calendars` | `[]calendar` | Instances of of [`calendar`](#calendar-config) items. |
+Calendars can be loaded from either:
 
-## Calendar Config
+- A **local file path** (e.g., a `.ics` file on disk)
+- A **remote URL** (e.g., a public or private iCal feed)
 
-| Key    | Type   | Description                                                                             |
-|:-------|:-------|:----------------------------------------------------------------------------------------|
-| `from` | `enum` | Can be either `file` or `url` to specify if the ical is read from disk, or from the web |
-| `ical` | `string` | Either the path to the local ical (*.ics) calendar file, or the URL to the calendar you wish to susbscribe to |
-
-## Example Calendars
+## Configuration Structure
 
 ```yaml
 calendars:
-  calendar1:
-    from: file
-    ical: /Users/cedi/.config/calendars/calender1.ics
-  calendar2:
+  - name: work
     from: url
-    ical: www.example.com/calendar/calendar.ics
+    ical: "https://example.com/calendar.ics"
+
+  - name: personal
+    from: file
+    ical: "/etc/calendarapi/personal.ics"
+```
+
+## Field Reference
+
+| Field    | Type     | Required | Description                                                                 |
+|----------|----------|----------|-----------------------------------------------------------------------------|
+| `name`   | string   | yes      | Unique identifier for the calendar source. Used in status updates and API calls. |
+| `from`   | string   | yes      | Must be either `file` or `url`, indicating how to load the calendar.       |
+| `ical`   | string   | yes      | Path to a local `.ics` file or a full URL to a remote calendar feed.       |
+
+::: note
+
+- Calendar names must be unique.
+- Remote URLs must be accessible by the CalendarAPI server.
+- Local paths must be readable by the process running CalendarAPI.
+
+:::
+
+## Example Use Cases
+
+### A Local File-Based Calendar
+
+```yaml
+calendars:
+  - name: internal
+    from: file
+    ical: /data/calendars/meetings.ics
+```
+
+### A Public Google Calendar
+
+```yaml
+calendars:
+  - name: team
+    from: url
+    ical: "https://calendar.google.com/calendar/ical/team%40example.com/private-uuid/basic.ics"
 ```

@@ -8,7 +8,7 @@ config:
       name: StaticPages
       text: Static hosting made simple, secure, and scalable.
       tagline: StaticPages is a simple server implementation to host your static pages with support for preview URLs.
-      image: /images/specht-labs-rounded.png
+      image: /logo.png
       actions:
         - text: Get Started
           link: /guide/

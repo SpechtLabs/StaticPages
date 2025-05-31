@@ -18,6 +18,20 @@ helm install staticpages spechtlabs/staticpages \
   -f my-values.yaml
 ```
 
+Then, create a secret containing your S3 credentials, typically managed via ksops and kustomize:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s3-credentials
+  namespace: static-pages
+type: Opaque
+stringData:
+  app-id: <your-app-id>
+  s3-secret: <your-base64-encoded-s3-secret>
+```
+
 For full setup instructions, refer to the [Helm Chart documentation](https://github.com/SpechtLabs/StaticPages/tree/main/charts/staticpages) and the [GitHub Action documentation](https://github.com/SpechtLabs/StaticPages-Upload).
 
 ## 2. Configure Your Static Page

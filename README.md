@@ -29,6 +29,29 @@ StaticPages is a stateless backend that:
 - Proxies site access via configurable URLs and fallback strategies
 - Serves preview builds via commit- and branch-based subdomains
 
+## Use the GitHub Action
+
+To deploy static generated pages from GitHub Action workflows:
+
+```yaml
+- name: Upload to Static Pages
+  uses: SpechtLabs/StaticPages-Upload@v1
+  with:
+    endpoint: https://staticpages.example.com
+    site-dir: public/
+```
+
+For full setup instructions, see the [`StaticPages-Upload@v1` Action Documentation](https://github.com/SpechtLabs/StaticPages-Upload):
+
+### Deploy with Helm
+
+```bash
+helm repo add spechtlabs https://charts.specht-labs.de
+helm install staticpages spechtlabs/staticpages -n static-pages --create-namespace -f my-values.yaml
+```
+
+For full setup instructions, see the [Helm Chart documentation](https://github.com/SpechtLabs/StaticPages/tree/main/charts/staticpages).
+
 ## Contributing
 
 Contributions are welcome! Feel free to open issues or pull requests. For larger changes, please start with a discussion in the issue section.

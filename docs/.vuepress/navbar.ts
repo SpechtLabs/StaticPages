@@ -11,15 +11,13 @@ export const navbar = defineNavbarConfig([
     ],
   },
 
-  // {
-  //   text: 'Configuration',
-  //   items: [
-  //     { text: 'Server', link: '/config/server' },
-  //     { text: 'Calendars', link: '/config/calendars' },
-  //     { text: 'Rules Engine', link: '/config/rules' },
-  //     { text: 'Home Assistant Add-On', link: '/config/home_assistant' },
-  //   ],
-  // },
+  {
+    text: 'References',
+    items: [
+      { text: 'Helm-Chart', link: '/references/helm-chart' },
+      { text: 'GitHub Action', link: '/references/action' },
+    ],
+  },
 
   {
     text: 'Download',

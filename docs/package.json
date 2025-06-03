@@ -40,7 +40,7 @@
   "dependencies": {
     "@vue/component-compiler-utils": "^3.3.0",
     "lru-cache": "^6.0.0",
-    "markdown-it-emoji": "^2.0.0",
+    "markdown-it-emoji": "^3.0.0",
     "mermaid": "^11.5.0",
     "vue-template-compiler": "^2.7.16"
   },

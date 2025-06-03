@@ -1,9 +1,9 @@
 <template>
   <div v-if="hasReleases">
-    <h2>Releases</h2>
+    <h2 class="title">Releases</h2>
+    <p class="description">Select your Platform</p>
 
     <div class="release-platforms">
-      <div>Select your Platform:</div>
       <button class="release-button release-platform" :class="{ active: platform === selectedPlatform }"
         v-for="(name, platform) in platforms" :key="platform" v-on:click="selectedPlatform = platform">
         {{ name }}
@@ -29,7 +29,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed } from "vue";
+import { computed, defineComponent, ref } from "vue";
 
 interface Release {
   id: number;
@@ -180,5 +180,23 @@ a.release-button {
 .release-button:focus {
   background: var(--vp-c-accent-hover);
   color: var(--vp-c-accent-text);
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 900;
+    margin-bottom: 20px;
+    text-align: center;
+    transition: color var(--vp-t-color);
+    color: var(--vp-c-text-1);
+}
+
+.description {
+    font-size: 18px;
+    font-weight: 400;
+    margin-bottom: 20px;
+    text-align: center;
+    transition: color var(--vp-t-color);
+    color: var(--vp-c-text-1);
 }
 </style>

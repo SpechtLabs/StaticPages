@@ -11,7 +11,7 @@ config:
       image: /logo.png
       actions:
         - text: Get Started
-          link: /guide/
+          link: /guide/overview
           type: brand
           icon: simple-icons:bookstack
         - text: GitHub Releases

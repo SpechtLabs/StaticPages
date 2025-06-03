@@ -13,7 +13,7 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/jellydator/ttlcache/v3 v3.3.0
-	github.com/johannesboyne/gofakes3 v0.0.0-20250402064820-d479899d8cbe
+	github.com/johannesboyne/gofakes3 v0.0.0-20250603205740-ed9094be7668
 	github.com/mcuadros/go-gin-prometheus v0.1.0
 	github.com/sierrasoftworks/humane-errors-go v0.0.0-20250507223502-4bb667dc1e16
 	github.com/spechtlabs/go-otel-utils/otelprovider v0.0.10

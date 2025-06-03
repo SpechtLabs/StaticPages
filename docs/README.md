@@ -10,13 +10,13 @@ config:
       tagline: StaticPages is a simple server implementation to host your static pages with support for preview URLs.
       image: /logo.png
       actions:
-        - text: Get Started
+        - text: Get Started →
           link: /guide/overview
-          type: brand
+          theme: brand
           icon: simple-icons:bookstack
-        - text: GitHub Releases
+        - text: GitHub Releases →
           link: https://github.com/SpechtLabs/StaticPages/releases
-          type: alt
+          theme: alt
           icon: simple-icons:github
 
   - type: features

@@ -1,5 +1,9 @@
 # StaticPages
 
+[![Release](https://github.com/SpechtLabs/StgaticPages/actions/workflows/release.yaml/badge.svg)](https://github.com/SpechtLabs/StgaticPages/actions/workflows/release.yaml)
+[![Continuous Integration](https://github.com/SpechtLabs/StgaticPages/actions/workflows/build.yaml/badge.svg)](https://github.com/SpechtLabs/StgaticPages/actions/workflows/build.yaml)
+[![Documentation](https://github.com/SpechtLabs/StgaticPages/actions/workflows/docs-website.yaml/badge.svg)](https://github.com/SpechtLabs/StgaticPages/actions/workflows/docs-website.yaml)
+
 StaticPages is a lightweight, self-hosted service for securely publishing static websites. It supports production and preview deployments with minimal operational overhead and integrates seamlessly with GitHub Actions, S3-compatible storage, and Kubernetes.
 
 ## Features

@@ -11,7 +11,7 @@ on:
       - src/**/*
       - .github/workflows/**
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     branches:
       - main
     paths:
@@ -100,14 +100,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     permissions:
-      contents:      read
-      actions:       read  # to download code coverage results from "test" job
+      contents: read
+      actions: read # to download code coverage results from "test" job
       pull-requests: write # write permission needed to comment on PR
 
     steps:
       - uses: fgrosse/go-coverage-report@v1.2.0
         with:
-          root-package: 'github.com/${{ github.repository }}/src'
+          root-package: "github.com/${{ github.repository }}/src"
           coverage-artifact-name: "code-coverage"
           coverage-file-name: "src/coverage.txt"
 

@@ -1,5 +1,5 @@
 /* TEAM */
-Lead Developer: Cedric Kienzler
+Lead Developer: Cedric Specht
 Site: https://specht-labs.de
 Location: Hamburg, Germany
 

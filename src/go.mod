@@ -12,7 +12,7 @@ require (
 	github.com/gin-contrib/zap v1.1.5
 	github.com/gin-gonic/gin v1.10.1
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
-	github.com/jellydator/ttlcache/v3 v3.3.0
+	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20250603205740-ed9094be7668
 	github.com/mcuadros/go-gin-prometheus v0.1.0
 	github.com/sierrasoftworks/humane-errors-go v0.0.0-20250507223502-4bb667dc1e16
@@ -98,7 +98,7 @@ require (
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect

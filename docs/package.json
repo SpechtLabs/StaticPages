@@ -13,11 +13,6 @@
     "url": "git+https://github.com/SpechtLabs/StaticPages.git"
   },
   "keywords": [
-    "calendar-api",
-    "ical",
-    "restapi",
-    "rest",
-    "grpc",
     "documentation",
     "vuepress",
     "website",
@@ -31,21 +26,21 @@
     "@vuepress/bundler-vite": "^2.0.0-rc.23",
     "@vuepress/plugin-register-components": "2.0.0-rc.103",
     "http-server": "^14.1.1",
-    "sass-embedded": "^1.89.0",
-    "typescript": "^5.7.3",
-    "vue": "^3.5.13",
+    "sass-embedded": "^1.93.2",
+    "typescript": "^5.9.3",
+    "vue": "^3.5.22",
     "vuepress": "2.0.0-rc.23",
     "vuepress-theme-plume": "1.0.0-rc.153"
   },
   "dependencies": {
     "@vue/component-compiler-utils": "^3.3.0",
-    "lru-cache": "^11.0.0",
+    "lru-cache": "^11.2.2",
     "markdown-it-emoji": "^3.0.0",
-    "mermaid": "^11.10.0",
+    "mermaid": "^11.12.0",
     "vue-template-compiler": "^2.7.16"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.38.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.52.5",
     "sass-embedded-linux-x64": "latest"
   },
   "scripts": {

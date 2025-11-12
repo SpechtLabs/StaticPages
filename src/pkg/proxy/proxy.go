@@ -132,7 +132,7 @@ func (p *Proxy) createDialContext(dialer *net.Dialer) func(ctx context.Context, 
 			zap.String("host", host),
 			zap.String("origin_ip", originIP))
 
-		return dialer.DialContext(ctx, network, "167.233.13.48:443")
+		return dialer.DialContext(ctx, network, resolvedAddr)
 	}
 }
 

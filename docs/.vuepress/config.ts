@@ -34,17 +34,6 @@ export default defineUserConfig({
     lastUpdated: false,
     contributors: false,
 
-    blog: {
-      postList: true,
-      tags: false,
-      archives: false,
-      categories: false,
-      postCover: 'right',
-      pagination: 15,
-    },
-
-    article: '/article/',
-
     cache: 'filesystem',
     search: { provider: 'local' },
 

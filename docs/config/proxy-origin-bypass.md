@@ -1,3 +1,8 @@
+---
+title: proxy-origin-bypass
+createTime: 2025/11/12 23:11:54
+permalink: /article/fokxf4x5/
+---
 # Proxy Origin Bypass
 
 When your StaticPages deployment is behind CloudFlare and needs to fetch content from another CloudFlare-proxied domain, you may encounter CloudFlare Error 1000 (DNS resolution loop).

@@ -7,16 +7,10 @@ on:
       - main
     tags-ignore:
       - "*"
-    paths:
-      - **/*
-      - .github/workflows/**
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
       - main
-    paths:
-      - **/*
-      - .github/workflows/**
 
 permissions:
   contents: write

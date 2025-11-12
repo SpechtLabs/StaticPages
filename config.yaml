@@ -1,0 +1,37 @@
+server:
+  proxyPort: 8080
+  apiPort: 8081
+
+proxy:
+  maxIdleConns: 1000
+  maxIdleConnsPerHost: 500
+  timeout: 30s
+  compression: false
+
+output:
+  format: long
+
+pages:
+    - domain: tka.av0.de
+      bucket:
+        applicationId: ENV(APPLICATION_ID)
+        name: cedi-testing
+        region: eu-central-003
+        secret: ENV(S3_SECRET)
+        url: https://s3.eu-central-003.backblazeb2.com
+      git:
+        mainBranch: main
+        provider: github
+        repository: SpechtLabs/tka
+      preview:
+        branch: true
+        enabled: true
+        environment: false
+        sha: false
+      proxy:
+        notFound: 404.html
+        path: ""
+        searchPath:
+        - /index.html
+        - /index.htm
+        url: https://cdn.specht-labs.de

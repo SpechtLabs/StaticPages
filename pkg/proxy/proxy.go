@@ -460,9 +460,15 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 		},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url.String()+location, nil)
+	// Construct URL properly: ensure / separator between base URL and path
+	baseURL := url.String()
+	if !strings.HasSuffix(baseURL, "/") && !strings.HasPrefix(location, "/") {
+		baseURL = baseURL + "/"
+	}
+	fullURL := baseURL + location
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, fullURL, nil)
 	if err != nil {
-		otelzap.L().WithError(err).Ctx(ctx).Error("failed to create request", zap.String("url", url.String()+location), zap.String("http.method", http.MethodHead))
+		otelzap.L().WithError(err).Ctx(ctx).Error("failed to create request", zap.String("url", fullURL), zap.String("http.method", http.MethodHead))
 		return http.StatusInternalServerError, err
 	}
 
@@ -519,7 +525,13 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 
 			cacheKey := fmt.Sprintf("%s-%s-%s", sourceHost, targetPath, lookup)
 			_, _ = p.group.Do(cacheKey, func() (interface{}, error) {
-				testPath := path.Clean(fmt.Sprintf("/%s/%s", targetPath, lookup))
+				var testPath string
+				if page.Proxy.Path.String() == "" {
+					// When proxy path is empty, don't add leading / - construct path relative to base URL
+					testPath = path.Join(targetPath, lookup)
+				} else {
+					testPath = path.Clean(fmt.Sprintf("/%s/%s", targetPath, lookup))
+				}
 				statusCode, err := p.probePath(probeCtx, backendURL, testPath)
 				if err != nil {
 					return nil, humane.Wrap(err, "Unable to probe path", "Make sure the path exists and is accessible.")

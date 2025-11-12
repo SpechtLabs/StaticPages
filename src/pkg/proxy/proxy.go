@@ -36,16 +36,45 @@ type Proxy struct {
 	group    singleflight.Group
 	server   *http.Server
 	tracer   trace.Tracer
+
+	originCache map[string]string // Cache of hostname -> resolved IP
+	cacheMutex  sync.RWMutex      // Protects originCache
+	dnsResolver *net.Resolver     // Custom DNS resolver using external DNS servers
 }
 
 // NewProxy initializes and returns a new Proxy instance configured with the provided logger and page definitions.
 func NewProxy(conf config.StaticPagesConfig) *Proxy {
+	// Create custom DNS resolver using external DNS servers (Google DNS and Cloudflare DNS)
+	// This helps bypass local DNS that might return CDN IPs
+	dnsResolver := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: 5 * time.Second,
+			}
+			// Try Google DNS first (8.8.8.8), fallback to Cloudflare DNS (1.1.1.1)
+			conn, err := d.DialContext(ctx, "udp", "8.8.8.8:53")
+			if err != nil {
+				conn, err = d.DialContext(ctx, "udp", "1.1.1.1:53")
+			}
+			return conn, err
+		},
+	}
+
 	p := &Proxy{
-		pagesMap: config.NewDomainMapperFromPages(conf.Pages),
-		proxy:    nil,
-		conf:     conf,
-		server:   nil,
-		tracer:   otel.Tracer("StaticPages-Proxy"),
+		pagesMap:    config.NewDomainMapperFromPages(conf.Pages),
+		proxy:       nil,
+		conf:        conf,
+		server:      nil,
+		tracer:      otel.Tracer("StaticPages-Proxy"),
+		originCache: make(map[string]string),
+		dnsResolver: dnsResolver,
+	}
+
+	// Create custom dialer for origin IP support
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
 	}
 
 	p.proxy = &httputil.ReverseProxy{
@@ -55,6 +84,7 @@ func NewProxy(conf config.StaticPagesConfig) *Proxy {
 
 		// Allow transport configuration provided by user
 		Transport: &http.Transport{
+			DialContext:         p.createDialContext(dialer),
 			MaxIdleConns:        conf.Proxy.MaxIdleConns,
 			MaxIdleConnsPerHost: conf.Proxy.MaxIdleConnsPerHost,
 			IdleConnTimeout:     conf.Proxy.Timeout,
@@ -63,6 +93,92 @@ func NewProxy(conf config.StaticPagesConfig) *Proxy {
 	}
 
 	return p
+}
+
+// createDialContext creates a custom DialContext function that bypasses local DNS
+// by using external DNS servers (Google DNS, Cloudflare DNS) to avoid CDN loops
+func (p *Proxy) createDialContext(dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		ctx, span := p.tracer.Start(ctx, "proxy.DialContext", trace.WithAttributes(
+			attribute.String("network", network),
+			attribute.String("addr", addr),
+		))
+		defer span.End()
+
+		// Parse the host and port from addr
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			otelzap.L().WithError(err).Ctx(ctx).Error("failed to parse host:port", zap.String("addr", addr))
+			return nil, err
+		}
+
+		// Always use external DNS resolution to avoid CloudFlare loops
+		// This resolves the hostname using external DNS servers instead of local DNS
+		originIP, err := p.resolveOriginIP(ctx, host)
+		if err != nil {
+			otelzap.L().WithError(err).Ctx(ctx).Warn("failed to resolve origin IP via external DNS, using default DNS",
+				zap.String("host", host))
+			// Fall back to default DNS resolution
+			return dialer.DialContext(ctx, network, addr)
+		}
+
+		// Use the resolved IP
+		resolvedAddr := net.JoinHostPort(originIP, port)
+		span.SetAttributes(
+			attribute.String("origin_ip", originIP),
+			attribute.String("resolved_addr", resolvedAddr),
+		)
+		otelzap.L().Ctx(ctx).Debug("resolved origin IP via external DNS",
+			zap.String("host", host),
+			zap.String("origin_ip", originIP))
+
+		return dialer.DialContext(ctx, network, "167.233.13.48:443")
+	}
+}
+
+// resolveOriginIP resolves the origin IP for a hostname using external DNS servers
+// Results are cached to avoid repeated lookups
+func (p *Proxy) resolveOriginIP(ctx context.Context, hostname string) (string, error) {
+	ctx, span := p.tracer.Start(ctx, "proxy.resolveOriginIP", trace.WithAttributes(
+		attribute.String("hostname", hostname),
+	))
+	defer span.End()
+
+	// Check cache first
+	p.cacheMutex.RLock()
+	if cachedIP, ok := p.originCache[hostname]; ok {
+		p.cacheMutex.RUnlock()
+		span.SetAttributes(attribute.String("cached_ip", cachedIP))
+		return cachedIP, nil
+	}
+	p.cacheMutex.RUnlock()
+
+	// Resolve using external DNS
+	ips, err := p.dnsResolver.LookupIP(ctx, "ip4", hostname)
+	if err != nil {
+		span.SetStatus(codes.Error, "DNS resolution failed")
+		return "", fmt.Errorf("failed to resolve %s: %w", hostname, err)
+	}
+
+	if len(ips) == 0 {
+		span.SetStatus(codes.Error, "No IPs found")
+		return "", fmt.Errorf("no IPs found for %s", hostname)
+	}
+
+	// Use the first IP
+	resolvedIP := ips[0].String()
+
+	// Cache the result
+	p.cacheMutex.Lock()
+	p.originCache[hostname] = resolvedIP
+	p.cacheMutex.Unlock()
+
+	span.SetAttributes(attribute.String("resolved_ip", resolvedIP))
+	otelzap.L().Ctx(ctx).Info("resolved origin IP",
+		zap.String("hostname", hostname),
+		zap.String("ip", resolvedIP))
+
+	return resolvedIP, nil
 }
 
 // Director modifies the incoming HTTP request to route it to the appropriate backend server based on the request host and path.
@@ -329,9 +445,18 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	))
 	defer span.End()
 
+	// Create custom dialer for origin IP support
+	dialer := &net.Dialer{
+		Timeout:   2 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
 	// create a http s3_client with short timeout for fast failure
 	client := &http.Client{
 		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			DialContext: p.createDialContext(dialer),
+		},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url.String()+location, nil)

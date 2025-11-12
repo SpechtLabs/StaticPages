@@ -1,10 +1,10 @@
-## Pull Request Template
+# Pull Request Template
 
 Before submitting your pull request, please go through the following checklist to ensure it meets our standards.
 
 ---
 
-### Pre-Submission Checklist
+## Pre-Submission Checklist
 
 1. **No Duplicate PRs**
    Search existing pull requests to avoid duplicates.
@@ -15,10 +15,10 @@ Before submitting your pull request, please go through the following checklist t
      Examples: `fix/login-bug`, `feature/user-authentication`
      Follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) standard for determining branch prefixes
 
-1. **Commit Style**
+3. **Commit Style**
    - Follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) standard:
 
-     ```
+     ```text
      <type>[optional scope]: <description>
 
      [optional body]
@@ -30,13 +30,13 @@ Before submitting your pull request, please go through the following checklist t
      - `fix(auth): resolve token expiration issue`
      - `feat(docs): add deployment instructions`
 
-2. **Commit Hygiene**
+4. **Commit Hygiene**
    - Ensure commits are squashed into a single logical commit.
    - The first line of the commit message should be a short, descriptive title.
 
 ---
 
-### Opening the Pull Request
+## Opening the Pull Request
 
 - [ ] The target branch is **not** `master` (usually use `staging` instead).
 - [ ] The pull request title is clear and descriptive.
@@ -46,7 +46,7 @@ Before submitting your pull request, please go through the following checklist t
 
 ---
 
-### Directory-Specific Requirements
+## Directory-Specific Requirements
 
 **If you changed files under `/docs`:**
 
@@ -61,10 +61,10 @@ Before submitting your pull request, please go through the following checklist t
 
 ---
 
-### Reference
+## Reference
 
 Please review the [CONTRIBUTING.md](../CONTRIBUTING.md) file for full guidelines on contributing.
 
 ---
 
-**PLEASE REMOVE THIS TEMPLATE BEFORE SUBMITTING**
+PLEASE REMOVE THIS TEMPLATE BEFORE SUBMITTING

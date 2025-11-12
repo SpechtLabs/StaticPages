@@ -9,7 +9,8 @@ LABEL org.opencontainers.image.url="https://staticpages.specht-labs.de"
 LABEL org.opencontainers.image.documentation="https://staticpages.specht-labs.de/docs"
 LABEL org.opencontainers.image.vendor="SpechtLabs"
 
-COPY ./staticpages /bin/staticpages
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM}/staticpages /bin/staticpages
 
 ENTRYPOINT ["/bin/staticpages"]
 CMD [ "serve" ]

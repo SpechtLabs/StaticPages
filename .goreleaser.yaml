@@ -1,34 +1,74 @@
 version: 2
 
-before:
-  hooks:
-    # You may remove this if you don't use go modules.
-    - go mod tidy
+project_name: staticpages
+
 builds:
-  - binary: staticpages
+  - id: server
     env:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
-      - darwin
     goarch:
-      - amd64
       - arm64
+      - amd64
+    goarm:
+      - "7"
+    binary: staticpages
     mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
       - -X=main.Version={{.Version}}
-      - -X=main.Branch={{.Branch}}
-      - -X=main.version={{.Version}}
-      - -X=main.commit={{.Commit}}
-      - -X=main.date={{ .CommitTimestamp }}
-      - -X=main.builtBy=goreleaser
+      - -X=main.Commit={{.Commit}}
+      - -X=main.Date={{ .CommitDate }}
 
-checksum:
-  name_template: "checksums.txt"
+# Docker image for server (multi-platform)
+dockers_v2:
+  - id: oci-bundle
+    dockerfile: Dockerfile
+    ids:
+      - server
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    images:
+      - ghcr.io/spechtlabs/staticpages
+    tags:
+      - latest
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+    labels:
+      org.opencontainers.image.created: "{{.Date}}"
+      org.opencontainers.image.title: "{{.ProjectName}}"
+      org.opencontainers.image.revision: "{{.FullCommit}}"
+      org.opencontainers.image.version: "{{.Version}}"
+    flags:
+      - "--pull"
 
-changelog:
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
+# Sign docker-image with cosign (keyless)
+docker_signs:
+  - id: oci-bundle-sign
+    artifacts: images
+    args:
+    - "sign"
+    - --oidc-issuer=https://token.actions.githubusercontent.com
+    - "${artifact}"
+    - --yes
+
+# Sign everything else
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - --yes
+      - --oidc-issuer=https://token.actions.githubusercontent.com
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+    artifacts: binary
+
+archives:
+  - id: server
+    ids:
+      - server
+    name_template: 'staticpages_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'

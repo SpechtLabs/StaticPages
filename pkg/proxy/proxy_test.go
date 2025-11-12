@@ -23,7 +23,8 @@ func initLogger() *bytes.Buffer {
 	// Capture logs for later assertions
 	enc := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	buf := &bytes.Buffer{}
-	writer := zapcore.AddSync(buf) //zap.CombineWriteSyncers(zaptest.NewTestingWriter(t), )
+	// Wrap the buffer writer with a mutex to make it thread-safe for concurrent logging
+	writer := zapcore.Lock(zapcore.AddSync(buf))
 	level := zap.NewAtomicLevelAt(zapcore.DebugLevel)
 
 	otelZapLogger := otelzap.New(zap.New(zapcore.NewCore(enc, writer, level)))

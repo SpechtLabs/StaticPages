@@ -37,9 +37,8 @@ type Proxy struct {
 	server   *http.Server
 	tracer   trace.Tracer
 
-	originCache map[string]string // Cache of hostname -> resolved IP
-	cacheMutex  sync.RWMutex      // Protects originCache
-	dnsResolver *net.Resolver     // Custom DNS resolver using external DNS servers
+	originCache sync.Map      // Cache of hostname -> resolved IP (thread-safe map)
+	dnsResolver *net.Resolver // Custom DNS resolver using external DNS servers
 }
 
 // NewProxy initializes and returns a new Proxy instance configured with the provided logger and page definitions.
@@ -67,7 +66,6 @@ func NewProxy(conf config.StaticPagesConfig) *Proxy {
 		conf:        conf,
 		server:      nil,
 		tracer:      otel.Tracer("StaticPages-Proxy"),
-		originCache: make(map[string]string),
 		dnsResolver: dnsResolver,
 	}
 
@@ -144,14 +142,13 @@ func (p *Proxy) resolveOriginIP(ctx context.Context, hostname string) (string, e
 	))
 	defer span.End()
 
-	// Check cache first
-	p.cacheMutex.RLock()
-	if cachedIP, ok := p.originCache[hostname]; ok {
-		p.cacheMutex.RUnlock()
-		span.SetAttributes(attribute.String("cached_ip", cachedIP))
-		return cachedIP, nil
+	// Check cache first (fast path)
+	if cachedIP, ok := p.originCache.Load(hostname); ok {
+		if ip, ok := cachedIP.(string); ok {
+			span.SetAttributes(attribute.String("cached_ip", ip))
+			return ip, nil
+		}
 	}
-	p.cacheMutex.RUnlock()
 
 	// Resolve using external DNS
 	ips, err := p.dnsResolver.LookupIP(ctx, "ip4", hostname)
@@ -168,10 +165,14 @@ func (p *Proxy) resolveOriginIP(ctx context.Context, hostname string) (string, e
 	// Use the first IP
 	resolvedIP := ips[0].String()
 
-	// Cache the result
-	p.cacheMutex.Lock()
-	p.originCache[hostname] = resolvedIP
-	p.cacheMutex.Unlock()
+	// Cache the result using LoadOrStore to avoid race condition
+	// If another goroutine already cached it, use that value instead
+	if actualIP, loaded := p.originCache.LoadOrStore(hostname, resolvedIP); loaded {
+		if ip, ok := actualIP.(string); ok {
+			span.SetAttributes(attribute.String("cached_ip", ip))
+			return ip, nil
+		}
+	}
 
 	span.SetAttributes(attribute.String("resolved_ip", resolvedIP))
 	otelzap.L().Ctx(ctx).Info("resolved origin IP",

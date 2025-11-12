@@ -7,25 +7,38 @@ on:
       - main
     paths:
       - docs/**/*
-      - .github/workflows/**
+      - .github/workflows/docs-website.yaml
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
       - main
     paths:
       - docs/**/*
-      - .github/workflows/**
+      - .github/workflows/docs-website.yaml
 
 jobs:
+  md:
+    name: Markdown
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: "**/*.md"
+
   build:
     runs-on: ubuntu-latest
     name: Build (Docs)
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -45,7 +58,9 @@ jobs:
 
   deploy-gh-pages:
     runs-on: ubuntu-latest
-    needs: build
+    needs:
+      - build
+      - md
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
 
     permissions:
@@ -59,13 +74,13 @@ jobs:
           enablement: true
 
       - name: Download Artifacts for Website
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: docs
           path: ./dist
 
       - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
 
@@ -75,7 +90,9 @@ jobs:
 
   deploy-static-pages:
     runs-on: ubuntu-latest
-    needs: build
+    needs:
+      - build
+      - md
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
 
     permissions:
@@ -84,7 +101,7 @@ jobs:
 
     steps:
       - name: Download Artifacts for Website
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: docs
           path: ./dist

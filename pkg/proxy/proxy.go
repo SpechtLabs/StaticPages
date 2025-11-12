@@ -265,12 +265,29 @@ func (p *Proxy) Director(req *http.Request) {
 		}
 	}
 
-	lookupRequestPath := path.Join(lookupPath, path.Clean(originalPath))
+	// When Proxy.Path is empty, we need to handle paths starting with / differently
+	// path.Join treats paths starting with / as absolute and ignores previous components
+	var lookupRequestPath string
+	if page.Proxy.Path.String() == "" {
+		cleanedPath := path.Clean(originalPath)
+		// Strip leading / if present to make it relative
+		cleanedPath = strings.TrimPrefix(cleanedPath, "/")
+		lookupRequestPath = path.Join(lookupPath, cleanedPath)
+	} else {
+		lookupRequestPath = path.Join(lookupPath, path.Clean(originalPath))
+	}
 	targetPath, err := p.lookupPath(ctx, page, requestUrl, backendUrl, lookupRequestPath)
 	if err != nil {
 		var err404 humane.Error
-		lookupRequestPath := path.Join(lookupPath, path.Clean(page.Proxy.NotFound))
-		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, lookupRequestPath)
+		var lookup404Path string
+		if page.Proxy.Path.String() == "" {
+			cleanedNotFound := path.Clean(page.Proxy.NotFound)
+			cleanedNotFound = strings.TrimPrefix(cleanedNotFound, "/")
+			lookup404Path = path.Join(lookupPath, cleanedNotFound)
+		} else {
+			lookup404Path = path.Join(lookupPath, path.Clean(page.Proxy.NotFound))
+		}
+		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, lookup404Path)
 
 		if err404 == nil {
 			otelzap.L().Ctx(ctx).Warn("no path found", zap.String("request_path", originalPath))
@@ -460,15 +477,20 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 		},
 	}
 
-	// Construct URL properly: ensure / separator between base URL and path
-	baseURL := url.String()
-	if !strings.HasSuffix(baseURL, "/") && !strings.HasPrefix(location, "/") {
-		baseURL = baseURL + "/"
+	// Construct URL properly: ensure path starts with / for valid HTTP URL
+	// When Proxy.Path is empty, location might not start with /, so we need to add it
+	pathToUse := location
+	if !strings.HasPrefix(pathToUse, "/") {
+		pathToUse = "/" + pathToUse
 	}
-	fullURL := baseURL + location
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, fullURL, nil)
+
+	// Use url.URL methods to properly construct the full URL
+	fullURL := *url
+	fullURL.Path = pathToUse
+	fullURLString := fullURL.String()
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, fullURLString, nil)
 	if err != nil {
-		otelzap.L().WithError(err).Ctx(ctx).Error("failed to create request", zap.String("url", fullURL), zap.String("http.method", http.MethodHead))
+		otelzap.L().WithError(err).Ctx(ctx).Error("failed to create request", zap.String("url", fullURLString), zap.String("http.method", http.MethodHead))
 		return http.StatusInternalServerError, err
 	}
 
@@ -528,9 +550,18 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 				var testPath string
 				if page.Proxy.Path.String() == "" {
 					// When proxy path is empty, don't add leading / - construct path relative to base URL
-					testPath = path.Join(targetPath, lookup)
+					// If lookup is empty, use targetPath directly without joining
+					if lookup == "" {
+						testPath = targetPath
+					} else {
+						testPath = path.Join(targetPath, lookup)
+					}
 				} else {
-					testPath = path.Clean(fmt.Sprintf("/%s/%s", targetPath, lookup))
+					if lookup == "" {
+						testPath = path.Clean(fmt.Sprintf("/%s", targetPath))
+					} else {
+						testPath = path.Clean(fmt.Sprintf("/%s/%s", targetPath, lookup))
+					}
 				}
 				statusCode, err := p.probePath(probeCtx, backendURL, testPath)
 				if err != nil {
@@ -538,8 +569,13 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 				}
 
 				if statusCode < http.StatusBadRequest {
+					// Ensure the path we return has a leading / for valid HTTP URL
+					pathToReturn := testPath
+					if !strings.HasPrefix(pathToReturn, "/") {
+						pathToReturn = "/" + pathToReturn
+					}
 					select {
-					case foundPath <- testPath:
+					case foundPath <- pathToReturn:
 					case <-probeCtx.Done():
 					}
 				}

@@ -146,15 +146,11 @@ jobs:
 
           if [[ "${{ needs.prepare.outputs.is_pr }}" == "true" ]]; then
             # PR builds: Skip Docker entirely
-            yq eval -i 'del(.dockers) | del(.docker_manifests) | del(.docker_signs)' .goreleaser.yaml
+            yq eval -i 'del(.dockers_v2) | del(.docker_signs)' .goreleaser.yaml
           else
             # Main branch builds: Change image tags to 'main'
             yq eval -i '
-              .dockers[0].image_templates = ["ghcr.io/spechtlabs/staticpages:main-amd64"] |
-              .dockers[1].image_templates = ["ghcr.io/spechtlabs/staticpages:main-arm64"] |
-              .docker_manifests[0].name_template = "ghcr.io/spechtlabs/staticpages:main" |
-              .docker_manifests[0].image_templates = ["ghcr.io/spechtlabs/staticpages:main-amd64", "ghcr.io/spechtlabs/staticpages:main-arm64"] |
-              del(.docker_manifests[1]) | del(.docker_manifests[1]) |
+              .dockers_v2[0].tags = ["main"] |
               del(.docker_signs)
             ' .goreleaser.yaml
           fi

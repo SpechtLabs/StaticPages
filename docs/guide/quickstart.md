@@ -10,6 +10,8 @@ Follow this guide to get StaticPages up and running in your Kubernetes cluster a
 
 First, deploy the StaticPages backend to your existing Kubernetes cluster:
 
+:::: terminal Deploy StaticPages
+
 ```bash
 helm repo add spechtlabs https://charts.specht-labs.de
 helm install staticpages spechtlabs/staticpages \
@@ -17,6 +19,8 @@ helm install staticpages spechtlabs/staticpages \
   --create-namespace \
   -f my-values.yaml
 ```
+
+::::
 
 Then, create a secret containing your S3 credentials, typically managed via ksops and kustomize:
 

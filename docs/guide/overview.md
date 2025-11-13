@@ -12,21 +12,21 @@ With a strong focus on performance, observability, and simplicity, StaticPages o
 
 ## Key Features
 
-- 🔐 **Secure by Default** – Authenticate uploads using GitHub OIDC tokens, with fine-grained access control per repository.
-- ⚡ **Fast Parallel Uploads** – Files are uploaded concurrently for efficient CI/CD pipelines.
-- 🌐 **Custom Domains & Previews** – Serve your site from your own domain, with automatic subdomains for branches or commits.
-- 🔁 **CI-Friendly GitHub Action** – Deploy via a single step in your GitHub Actions workflow.
-- 📊 **OpenTelemetry Observability** – Track every request with full tracing support using OpenTelemetry.
-- ☸️ **Kubernetes-Ready** – Helm Chart available for quick and scalable production deployments.
+- **Secure by Default** - Authenticate uploads using GitHub OIDC tokens, with fine-grained access control per repository.
+- **Fast Parallel Uploads** - Files are uploaded concurrently for efficient CI/CD pipelines.
+- **Custom Domains & Previews** - Serve your site from your own domain, with automatic subdomains for branches or commits.
+- **CI-Friendly GitHub Action** - Deploy via a single step in your GitHub Actions workflow.
+- **OpenTelemetry Observability** - Track every request with full tracing support using OpenTelemetry.
+- **Kubernetes-Ready** - Helm Chart available for quick and scalable production deployments.
 
 ## Architecture
 
 StaticPages operates as a stateless backend that connects:
 
-1. **GitHub Repositories** – for secure CI/CD uploads via OIDC tokens.
-2. **S3-Compatible Object Storage** – for storing static files.
-3. **Custom Domains** – to serve content under your own DNS entries.
-4. **A Proxy Layer** – for seamless fallback behavior and preview support.
+1. **GitHub Repositories** - for secure CI/CD uploads via OIDC tokens.
+2. **S3-Compatible Object Storage** - for storing static files.
+3. **Custom Domains** - to serve content under your own DNS entries.
+4. **A Proxy Layer** - for seamless fallback behavior and preview support.
 
 The system supports preview environments out of the box. These are accessible using structured subdomains like:
 

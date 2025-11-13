@@ -2,7 +2,6 @@
 
 ## [0.1.3](https://github.com/SpechtLabs/StaticPages/compare/v0.1.2...v0.1.3) (2025-11-13)
 
-
 ### Bug Fixes
 
 * **deps:** update aws-sdk-go-v2 monorepo ([#55](https://github.com/SpechtLabs/StaticPages/issues/55)) ([3890fea](https://github.com/SpechtLabs/StaticPages/commit/3890fea490b341168d559cbab135daee2d3a66e9))

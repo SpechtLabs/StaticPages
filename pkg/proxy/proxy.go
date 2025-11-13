@@ -568,7 +568,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 
 	// Ensure Host header is set correctly for virtual hosting (important for CDNs)
 	req.Host = url.Host
-	
+
 	// Inject trace context headers for the backend call
 	req = req.WithContext(ctx)
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
@@ -597,7 +597,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	}(resp.Body)
 
 	span.SetAttributes(attribute.Int("code", resp.StatusCode))
-	
+
 	if resp.StatusCode >= 400 {
 		otelzap.L().Ctx(ctx).Debug("path probe returned error status",
 			zap.String("full_url", fullURLString),
@@ -607,7 +607,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 			zap.String("full_url", fullURLString),
 			zap.Int("status_code", resp.StatusCode))
 	}
-	
+
 	span.SetStatus(codes.Ok, "")
 	return resp.StatusCode, nil
 }
@@ -679,12 +679,12 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 					if !strings.HasPrefix(pathToReturn, "/") {
 						pathToReturn = "/" + pathToReturn
 					}
-					
+
 					otelzap.L().Ctx(ctx).Info("found valid path",
 						zap.String("test_path", testPath),
 						zap.String("path_to_return", pathToReturn),
 						zap.Int("status_code", statusCode))
-					
+
 					select {
 					case foundPath <- pathToReturn:
 					case <-probeCtx.Done():
@@ -706,18 +706,18 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 			cancelProbes()
 			return p, nil
 		}
-		
+
 		otelzap.L().Ctx(ctx).Warn("no valid path found after testing all options",
 			zap.String("target_path", targetPath),
 			zap.Strings("tested_paths", testedPaths),
 			zap.String("backend_url", backendURL.String()))
-		
+
 		return "", humane.New("No valid path found", "Make sure the path exists and is accessible.")
 	case <-probeCtx.Done():
 		otelzap.L().Ctx(ctx).Warn("path lookup timed out",
 			zap.String("target_path", targetPath),
 			zap.Strings("tested_paths", testedPaths))
-		
+
 		return "", humane.New("Context cancelled", "Make sure the path exists and is accessible.")
 	}
 }

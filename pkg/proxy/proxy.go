@@ -237,6 +237,7 @@ func (p *Proxy) Director(req *http.Request) {
 		return
 	}
 
+	var resolvedSHA string
 	if !page.Preview.Enabled || sub == "" {
 		sub = page.Git.MainBranch
 
@@ -250,20 +251,30 @@ func (p *Proxy) Director(req *http.Request) {
 			return
 		}
 
+		resolvedSHA = sha
 		lookupPath = path.Join(lookupPath, path.Clean(sha))
 	} else {
 		if sha, _, err := metadata.GetLatestForBranch(sub); err == nil {
+			resolvedSHA = sha
 			lookupPath = path.Join(lookupPath, path.Clean(sha))
 		} else if _, err := metadata.GetBySHA(sub); err == nil {
+			resolvedSHA = sub
 			lookupPath = path.Join(lookupPath, path.Clean(sub))
 		} else {
 			otelzap.L().Ctx(ctx).Error("could not find a commit to serve page for",
 				zap.String("request_url", requestUrl),
 				zap.String("domain", page.Domain.String()),
+				zap.String("subdomain_or_sha", sub),
 			)
 			return
 		}
 	}
+
+	otelzap.L().Ctx(ctx).Debug("resolved commit for request",
+		zap.String("request_url", requestUrl),
+		zap.String("subdomain", sub),
+		zap.String("sha", resolvedSHA),
+		zap.String("base_lookup_path", lookupPath))
 
 	// When Proxy.Path is empty, we need to handle paths starting with / differently
 	// path.Join treats paths starting with / as absolute and ignores previous components
@@ -276,8 +287,19 @@ func (p *Proxy) Director(req *http.Request) {
 	} else {
 		lookupRequestPath = path.Join(lookupPath, path.Clean(originalPath))
 	}
+
+	otelzap.L().Ctx(ctx).Debug("constructed lookup path",
+		zap.String("original_path", originalPath),
+		zap.String("lookup_request_path", lookupRequestPath),
+		zap.String("proxy_path", page.Proxy.Path.String()),
+		zap.Strings("search_paths", page.Proxy.SearchPath))
+
 	targetPath, err := p.lookupPath(ctx, page, requestUrl, backendUrl, lookupRequestPath)
 	if err != nil {
+		otelzap.L().WithError(err).Ctx(ctx).Warn("original path not found, attempting 404 fallback",
+			zap.String("request_path", originalPath),
+			zap.String("lookup_path", lookupRequestPath))
+
 		var err404 humane.Error
 		var lookup404Path string
 		if page.Proxy.Path.String() == "" {
@@ -287,13 +309,26 @@ func (p *Proxy) Director(req *http.Request) {
 		} else {
 			lookup404Path = path.Join(lookupPath, path.Clean(page.Proxy.NotFound))
 		}
+
+		otelzap.L().Ctx(ctx).Debug("trying 404 page",
+			zap.String("not_found_page", page.Proxy.NotFound),
+			zap.String("lookup_404_path", lookup404Path))
+
 		targetPath, err404 = p.lookupPath(ctx, page, requestUrl, backendUrl, lookup404Path)
 
 		if err404 == nil {
-			otelzap.L().Ctx(ctx).Warn("no path found", zap.String("request_path", originalPath))
+			otelzap.L().Ctx(ctx).Info("serving 404 page",
+				zap.String("request_path", originalPath),
+				zap.String("404_path", targetPath))
 		} else {
-			otelzap.L().WithError(err).Ctx(ctx).Error("no path found", zap.String("request_path", originalPath))
+			otelzap.L().WithError(err).Ctx(ctx).Error("no path found and 404 page not available",
+				zap.String("request_path", originalPath),
+				zap.String("404_path_attempted", lookup404Path))
 		}
+	} else {
+		otelzap.L().Ctx(ctx).Debug("successfully resolved path",
+			zap.String("request_path", originalPath),
+			zap.String("target_path", targetPath))
 	}
 
 	req.URL.Scheme = backendUrl.Scheme
@@ -303,12 +338,18 @@ func (p *Proxy) Director(req *http.Request) {
 	// Clear the RequestURI as it's required for s3_client requests
 	req.RequestURI = ""
 
+	// Save original host for logging
+	originalHost := req.Host
+
+	// Set Host header to backend host for virtual hosting (critical for CDNs)
+	req.Host = backendUrl.Host
+
 	// Set or update headers
 	if _, ok := req.Header["User-Agent"]; !ok {
 		req.Header.Set("User-Agent", "StaticPages-Proxy")
 	}
 
-	req.Header.Set("X-Forwarded-Host", req.Host)
+	req.Header.Set("X-Forwarded-Host", originalHost)
 	req.Header.Set("X-Origin-Host", backendUrl.Host)
 
 	// Inject trace context headers for the backend call
@@ -316,11 +357,13 @@ func (p *Proxy) Director(req *http.Request) {
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	// Log the request transformation
-	otelzap.L().Ctx(ctx).Debug("transformed request",
-		zap.String("request_path", originalPath),
+	otelzap.L().Ctx(ctx).Info("proxying request",
+		zap.String("original_host", requestUrl),
+		zap.String("original_path", originalPath),
+		zap.String("proxy_url", req.URL.String()),
+		zap.String("backend_host", backendUrl.Host),
 		zap.String("backend_path", targetPath),
-		zap.String("backend_url", backendUrl.String()),
-		zap.String("backend_path", req.URL.String()))
+		zap.String("host_header", req.Host))
 }
 
 // ErrorHandler handles errors during request processing by logging the error and responding with the appropriate HTTP status code.
@@ -353,22 +396,44 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 		attribute.String("http.url", r.Request.Host),
 		attribute.String("proxy_url", r.Request.URL.String()),
 		attribute.Int64("content_length", r.ContentLength),
+		attribute.Int("status_code", r.StatusCode),
 	))
 	defer span.End()
 
-	if r.StatusCode >= 300 {
+	if r.StatusCode >= 400 {
+		// Error responses
 		if otelzap.L().Core().Enabled(zap.DebugLevel) {
 			dump, _ := httputil.DumpResponse(r, true)
 
-			otelzap.L().Ctx(ctx).Debug("received response",
-				zap.Int("http.code", r.StatusCode),
+			otelzap.L().Ctx(ctx).Warn("received error response from backend",
+				zap.Int("status_code", r.StatusCode),
+				zap.String("status", r.Status),
 				zap.String("request_url", r.Request.URL.String()),
-				zap.ByteString("body", dump))
+				zap.String("content_type", r.Header.Get("Content-Type")),
+				zap.Int64("content_length", r.ContentLength),
+				zap.ByteString("response_dump", dump))
 		} else {
-			otelzap.L().Ctx(ctx).Info("received response",
-				zap.Int("http.code", r.StatusCode),
-				zap.String("request_url", r.Request.URL.String()))
+			otelzap.L().Ctx(ctx).Warn("received error response from backend",
+				zap.Int("status_code", r.StatusCode),
+				zap.String("status", r.Status),
+				zap.String("request_url", r.Request.URL.String()),
+				zap.String("content_type", r.Header.Get("Content-Type")),
+				zap.Int64("content_length", r.ContentLength))
 		}
+	} else if r.StatusCode >= 300 {
+		// Redirect responses
+		otelzap.L().Ctx(ctx).Debug("received redirect response",
+			zap.Int("status_code", r.StatusCode),
+			zap.String("status", r.Status),
+			zap.String("location", r.Header.Get("Location")),
+			zap.String("request_url", r.Request.URL.String()))
+	} else {
+		// Success responses
+		otelzap.L().Ctx(ctx).Debug("received successful response",
+			zap.Int("status_code", r.StatusCode),
+			zap.String("request_url", r.Request.URL.String()),
+			zap.String("content_type", r.Header.Get("Content-Type")),
+			zap.Int64("content_length", r.ContentLength))
 	}
 
 	return nil
@@ -488,22 +553,38 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	fullURL := *url
 	fullURL.Path = pathToUse
 	fullURLString := fullURL.String()
+
+	otelzap.L().Ctx(ctx).Debug("probing path",
+		zap.String("full_url", fullURLString),
+		zap.String("base_url", url.String()),
+		zap.String("path", pathToUse),
+		zap.String("hostname", url.Hostname()))
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, fullURLString, nil)
 	if err != nil {
 		otelzap.L().WithError(err).Ctx(ctx).Error("failed to create request", zap.String("url", fullURLString), zap.String("http.method", http.MethodHead))
 		return http.StatusInternalServerError, err
 	}
 
+	// Ensure Host header is set correctly for virtual hosting (important for CDNs)
+	req.Host = url.Host
+	
 	// Inject trace context headers for the backend call
 	req = req.WithContext(ctx)
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
+	otelzap.L().Ctx(ctx).Debug("sending probe request",
+		zap.String("url", fullURLString),
+		zap.String("host_header", req.Host),
+		zap.String("method", http.MethodHead))
+
 	resp, err := client.Do(req)
 	if err != nil {
 		if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
-			otelzap.L().WithError(err).Ctx(ctx).Error("failed to probe path",
+			otelzap.L().WithError(err).Ctx(ctx).Warn("failed to probe path",
 				zap.String("proxy_host", url.String()),
 				zap.String("target_path", location),
+				zap.String("full_url", fullURLString),
 			)
 		}
 		return http.StatusNotFound, err
@@ -516,6 +597,17 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	}(resp.Body)
 
 	span.SetAttributes(attribute.Int("code", resp.StatusCode))
+	
+	if resp.StatusCode >= 400 {
+		otelzap.L().Ctx(ctx).Debug("path probe returned error status",
+			zap.String("full_url", fullURLString),
+			zap.Int("status_code", resp.StatusCode))
+	} else {
+		otelzap.L().Ctx(ctx).Debug("path probe successful",
+			zap.String("full_url", fullURLString),
+			zap.Int("status_code", resp.StatusCode))
+	}
+	
 	span.SetStatus(codes.Ok, "")
 	return resp.StatusCode, nil
 }
@@ -538,6 +630,13 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 	defer cancelProbes()
 
 	var wg sync.WaitGroup
+	var testedPaths []string
+	var testedPathsMu sync.Mutex
+
+	otelzap.L().Ctx(ctx).Debug("starting path lookup",
+		zap.String("target_path", targetPath),
+		zap.Strings("search_paths", searchPaths),
+		zap.String("backend_url", backendURL.String()))
 
 	for _, lookup := range searchPaths {
 		wg.Add(1)
@@ -563,6 +662,12 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 						testPath = path.Clean(fmt.Sprintf("/%s/%s", targetPath, lookup))
 					}
 				}
+
+				// Track what we're testing
+				testedPathsMu.Lock()
+				testedPaths = append(testedPaths, testPath)
+				testedPathsMu.Unlock()
+
 				statusCode, err := p.probePath(probeCtx, backendURL, testPath)
 				if err != nil {
 					return nil, humane.Wrap(err, "Unable to probe path", "Make sure the path exists and is accessible.")
@@ -574,6 +679,12 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 					if !strings.HasPrefix(pathToReturn, "/") {
 						pathToReturn = "/" + pathToReturn
 					}
+					
+					otelzap.L().Ctx(ctx).Info("found valid path",
+						zap.String("test_path", testPath),
+						zap.String("path_to_return", pathToReturn),
+						zap.Int("status_code", statusCode))
+					
 					select {
 					case foundPath <- pathToReturn:
 					case <-probeCtx.Done():
@@ -595,8 +706,18 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 			cancelProbes()
 			return p, nil
 		}
+		
+		otelzap.L().Ctx(ctx).Warn("no valid path found after testing all options",
+			zap.String("target_path", targetPath),
+			zap.Strings("tested_paths", testedPaths),
+			zap.String("backend_url", backendURL.String()))
+		
 		return "", humane.New("No valid path found", "Make sure the path exists and is accessible.")
 	case <-probeCtx.Done():
+		otelzap.L().Ctx(ctx).Warn("path lookup timed out",
+			zap.String("target_path", targetPath),
+			zap.Strings("tested_paths", testedPaths))
+		
 		return "", humane.New("Context cancelled", "Make sure the path exists and is accessible.")
 	}
 }

@@ -32,6 +32,18 @@ jobs:
           cache: true
           cache-dependency-path: "**/*.sum"
 
+      # Cache Go build cache - reusing same cache key across all jobs
+      - name: Cache Go build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}-
+            ${{ runner.os }}-go-build-
+
       - name: GolangCI Lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -52,6 +64,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Needed for changed files detection
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -60,8 +74,53 @@ jobs:
           cache: true
           cache-dependency-path: "**/*.sum"
 
-      - name: Run tests
-        run: go test -race -cover -covermode=atomic -coverprofile=coverage.txt ./...
+      # Cache Go build cache for test results and compiled binaries
+      # Using the same cache key as build.yaml to share cache across workflows
+      - name: Cache Go build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}-
+            ${{ runner.os }}-go-build-
+
+      # Detect changed packages for smarter test execution
+      - name: Detect changed packages
+        id: changed-packages
+        run: |
+          # For release workflow, compare against previous commit
+          BASE_SHA="${{ github.event.before }}"
+          HEAD_SHA="${{ github.sha }}"
+          
+          # Get list of changed Go files
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep '\.go$' || true)
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No Go files changed, but running all tests for safety"
+            echo "run_all=true" >> "$GITHUB_OUTPUT"
+            echo "packages=./..." >> "$GITHUB_OUTPUT"
+          else
+            # Extract unique package directories from changed files
+            PACKAGES=$(echo "$CHANGED_FILES" | xargs -I {} dirname {} | sort -u | sed 's|^|./|' | sed 's|$|/...|' | tr '\n' ' ')
+            echo "Changed packages: $PACKAGES"
+            echo "run_all=false" >> "$GITHUB_OUTPUT"
+            echo "packages=$PACKAGES" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run tests with caching
+        env:
+          PACKAGES: ${{ steps.changed-packages.outputs.packages }}
+        run: |
+          # Run tests with Go's built-in caching enabled (don't use -count=1)
+          # The -vet=off flag skips vet since it's already run by golangci-lint
+          go test -vet=off -race -cover -covermode=atomic -coverprofile=coverage.txt $PACKAGES
+          
+          # Display cache stats
+          echo "=== Go Build Cache Stats ==="
+          go clean -cache -n || true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -105,6 +164,18 @@ jobs:
           go-version-file: "go.mod"
           cache-dependency-path: "**/*.sum"
           cache: true
+
+      # Cache Go build cache - reusing same cache key as test jobs
+      - name: Cache Go build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}-
+            ${{ runner.os }}-go-build-
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

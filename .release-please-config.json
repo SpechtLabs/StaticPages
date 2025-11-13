@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "StaticPages",
+      "package-name": "staticpages",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true
     }

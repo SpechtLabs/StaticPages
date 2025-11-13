@@ -401,11 +401,11 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 	defer span.End()
 
 	if r.StatusCode >= 400 {
-		// Error responses
+		// Client/Server error responses
 		if otelzap.L().Core().Enabled(zap.DebugLevel) {
 			dump, _ := httputil.DumpResponse(r, true)
 
-			otelzap.L().Ctx(ctx).Warn("received error response from backend",
+			otelzap.L().Ctx(ctx).Warn("received unsuccessful response from backend",
 				zap.Int("status_code", r.StatusCode),
 				zap.String("status", r.Status),
 				zap.String("request_url", r.Request.URL.String()),
@@ -413,7 +413,7 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 				zap.Int64("content_length", r.ContentLength),
 				zap.ByteString("response_dump", dump))
 		} else {
-			otelzap.L().Ctx(ctx).Warn("received error response from backend",
+			otelzap.L().Ctx(ctx).Warn("received unsuccessful response from backend",
 				zap.Int("status_code", r.StatusCode),
 				zap.String("status", r.Status),
 				zap.String("request_url", r.Request.URL.String()),
@@ -599,7 +599,7 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	span.SetAttributes(attribute.Int("code", resp.StatusCode))
 
 	if resp.StatusCode >= 400 {
-		otelzap.L().Ctx(ctx).Debug("path probe returned error status",
+		otelzap.L().Ctx(ctx).Debug("path probe returned unsuccessful status",
 			zap.String("full_url", fullURLString),
 			zap.Int("status_code", resp.StatusCode))
 	} else {

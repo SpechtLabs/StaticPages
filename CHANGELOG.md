@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.4](https://github.com/SpechtLabs/StaticPages/compare/v0.1.3...v0.1.4) (2025-11-13)
+
+
+### Features
+
+* **cicd:** cache go build ([baf881c](https://github.com/SpechtLabs/StaticPages/commit/baf881c5355747a02623a5845ab412cd83eaced9))
+* **cicd:** cache go build ([11b46af](https://github.com/SpechtLabs/StaticPages/commit/11b46af9017f04385b62f576e15358fb14fa7d24))
+* **logging:** improve logging ([9e0b53a](https://github.com/SpechtLabs/StaticPages/commit/9e0b53a35f54fa0f438399cdadf0b54c6033b50b))
+* **logging:** improve logging ([2ed117b](https://github.com/SpechtLabs/StaticPages/commit/2ed117b66c1489986c37f127078c9249967defc1))
+* **logging:** improve logging ([edf950a](https://github.com/SpechtLabs/StaticPages/commit/edf950a5202fa83e6c5732ffcc44cb8d95ed341d))
+* **logging:** improve logging ([b981b76](https://github.com/SpechtLabs/StaticPages/commit/b981b76664d8277ee20a5467a4f5e728b5455acf))
+
 ## [0.1.3](https://github.com/SpechtLabs/StaticPages/compare/v0.1.2...v0.1.3) (2025-11-13)
 
 ### Bug Fixes

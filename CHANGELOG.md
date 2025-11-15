@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/SpechtLabs/StaticPages/compare/v0.1.4...v0.1.5) (2025-11-15)
+
+
+### Features
+
+* **docs:** improve documentation ([c28693d](https://github.com/SpechtLabs/StaticPages/commit/c28693d44ea72a5e5fcd552d14bd201a92895877))
+
 ## [0.1.4](https://github.com/SpechtLabs/StaticPages/compare/v0.1.3...v0.1.4) (2025-11-13)
 
 

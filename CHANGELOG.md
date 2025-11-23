@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.5](https://github.com/SpechtLabs/StaticPages/compare/v0.1.4...v0.1.5) (2025-11-23)
+
+
+### Features
+
+* **docs:** improve documentation ([c28693d](https://github.com/SpechtLabs/StaticPages/commit/c28693d44ea72a5e5fcd552d14bd201a92895877))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#107](https://github.com/SpechtLabs/StaticPages/issues/107)) ([10b7812](https://github.com/SpechtLabs/StaticPages/commit/10b78120361f522775d8fda4c45f3d894ca10024))
+* **deps:** update aws-sdk-go-v2 monorepo ([#116](https://github.com/SpechtLabs/StaticPages/issues/116)) ([d522d7e](https://github.com/SpechtLabs/StaticPages/commit/d522d7ee17ffb4d0e50e82bc27b7506433ab7d55))
+* **deps:** update module github.com/coreos/go-oidc/v3 to v3.17.0 ([#117](https://github.com/SpechtLabs/StaticPages/issues/117)) ([7b0febd](https://github.com/SpechtLabs/StaticPages/commit/7b0febd1c7b1c2dffb4bb35cdbd0117aeb12f7e9))
+* **deps:** update module go.uber.org/zap to v1.27.1 ([#115](https://github.com/SpechtLabs/StaticPages/issues/115)) ([7390f46](https://github.com/SpechtLabs/StaticPages/commit/7390f469db8305202df69820d1bff37cd537fd31))
+
 ## [0.1.4](https://github.com/SpechtLabs/StaticPages/compare/v0.1.3...v0.1.4) (2025-11-13)
 
 

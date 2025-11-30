@@ -66,7 +66,7 @@ pages:
 ### `bucket` Section
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `region` | string | Yes | Backblaze B2 region identifier (e.g., `eu-central-003`) |
 | `url` | string | Yes | S3-compatible API endpoint URL |
 | `name` | string | Yes | Bucket name |
@@ -76,7 +76,7 @@ pages:
 ### `proxy` Section
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `url` | string | Yes | Public file access URL (Backblaze endpoint or CDN) |
 | `path` | string | Yes | Must be `file/{bucket-name}` for Backblaze B2 |
 | `notFound` | string | No | Path to 404 page (default: `404.html`) |
@@ -87,7 +87,7 @@ pages:
 Backblaze B2 regions and their corresponding endpoints:
 
 | Region | S3 API Endpoint | Public Download Endpoint |
-|--------|----------------|-------------------------|
+| --- | --- | --- |
 | `us-west-001` | `s3.us-west-001.backblazeb2.com` | `f001.backblazeb2.com` |
 | `us-west-002` | `s3.us-west-002.backblazeb2.com` | `f002.backblazeb2.com` |
 | `eu-central-003` | `s3.eu-central-003.backblazeb2.com` | `f003.backblazeb2.com` |
@@ -107,7 +107,7 @@ proxy:
 StaticPages constructs URLs like:
 
 | Original Request | Resolved Path | Full URL |
-|-----------------|---------------|----------|
+| --- | --- | --- |
 | `/` | `/file/my-bucket/org/repo/sha/index.html` | `https://f003.backblazeb2.com/file/my-bucket/org/repo/sha/index.html` |
 | `/about/` | `/file/my-bucket/org/repo/sha/about/index.html` | `https://f003.backblazeb2.com/file/my-bucket/org/repo/sha/about/index.html` |
 | `/style.css` | `/file/my-bucket/org/repo/sha/style.css` | `https://f003.backblazeb2.com/file/my-bucket/org/repo/sha/style.css` |

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.5](https://github.com/SpechtLabs/StaticPages/compare/v0.1.4...v0.1.5) (2025-11-30)
+
+
+### Features
+
+* **docs:** improve documentation ([c28693d](https://github.com/SpechtLabs/StaticPages/commit/c28693d44ea72a5e5fcd552d14bd201a92895877))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#107](https://github.com/SpechtLabs/StaticPages/issues/107)) ([10b7812](https://github.com/SpechtLabs/StaticPages/commit/10b78120361f522775d8fda4c45f3d894ca10024))
+* **deps:** update aws-sdk-go-v2 monorepo ([#116](https://github.com/SpechtLabs/StaticPages/issues/116)) ([d522d7e](https://github.com/SpechtLabs/StaticPages/commit/d522d7ee17ffb4d0e50e82bc27b7506433ab7d55))
+* **deps:** update aws-sdk-go-v2 monorepo ([#121](https://github.com/SpechtLabs/StaticPages/issues/121)) ([e8eff7c](https://github.com/SpechtLabs/StaticPages/commit/e8eff7c4c015550989dbb2213a2335d50b411648))
+* **deps:** update github.com/johannesboyne/gofakes3 digest to ebf3e50 ([#70](https://github.com/SpechtLabs/StaticPages/issues/70)) ([02415a9](https://github.com/SpechtLabs/StaticPages/commit/02415a9dfceabbb2240fb2f4980f69dd9ed8ca29))
+* **deps:** update module github.com/coreos/go-oidc/v3 to v3.17.0 ([#117](https://github.com/SpechtLabs/StaticPages/issues/117)) ([7b0febd](https://github.com/SpechtLabs/StaticPages/commit/7b0febd1c7b1c2dffb4bb35cdbd0117aeb12f7e9))
+* **deps:** update module github.com/gin-contrib/zap to v1.1.6 ([#123](https://github.com/SpechtLabs/StaticPages/issues/123)) ([5036131](https://github.com/SpechtLabs/StaticPages/commit/50361313626eb17ef30ebd58e92007d536477d56))
+* **deps:** update module github.com/mcuadros/go-gin-prometheus to v1 ([#94](https://github.com/SpechtLabs/StaticPages/issues/94)) ([95dc12a](https://github.com/SpechtLabs/StaticPages/commit/95dc12ad12fa6a1c2c3659dea853b36cdeaef627))
+* **deps:** update module go.uber.org/zap to v1.27.1 ([#115](https://github.com/SpechtLabs/StaticPages/issues/115)) ([7390f46](https://github.com/SpechtLabs/StaticPages/commit/7390f469db8305202df69820d1bff37cd537fd31))
+* **docs/reference/backblaze-b2-config.md:** markdownlint-cli2 ([4b21e96](https://github.com/SpechtLabs/StaticPages/commit/4b21e962e6c48f83289f3f7c3405c2fe19626a33))
+
 ## [0.1.4](https://github.com/SpechtLabs/StaticPages/compare/v0.1.3...v0.1.4) (2025-11-13)
 
 

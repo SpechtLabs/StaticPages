@@ -288,7 +288,7 @@ func setupMockS3(test *testProxyServer) *httptest.Server {
 		panic(err)
 	}
 
-	_, err = s3Backend.PutObject("test", "index.yaml", nil, reader, size)
+	_, err = s3Backend.PutObject("test", "index.yaml", nil, reader, size, nil)
 	if err != nil {
 		panic(err)
 	}

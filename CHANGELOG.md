@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.6](https://github.com/SpechtLabs/StaticPages/compare/v0.1.5...v0.1.6) (2025-12-06)
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#132](https://github.com/SpechtLabs/StaticPages/issues/132)) ([ad17a4d](https://github.com/SpechtLabs/StaticPages/commit/ad17a4dcd219a1ee138d40669d6bfb5f2c96adb8))
+* **deps:** update module github.com/aws/smithy-go to v1.24.0 ([#128](https://github.com/SpechtLabs/StaticPages/issues/128)) ([5c3e21f](https://github.com/SpechtLabs/StaticPages/commit/5c3e21f6636fc9a93f2c41e6fc696aafe9981047))
+* **deps:** update module github.com/spf13/cobra to v1.10.2 ([#133](https://github.com/SpechtLabs/StaticPages/issues/133)) ([ccd0ee0](https://github.com/SpechtLabs/StaticPages/commit/ccd0ee0ac5b6ddfa78ce373b265d8b0c1f51b613))
+
 ## [0.1.5](https://github.com/SpechtLabs/StaticPages/compare/v0.1.4...v0.1.5) (2025-11-30)
 
 

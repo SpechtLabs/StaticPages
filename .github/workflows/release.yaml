@@ -34,7 +34,7 @@ jobs:
 
       # Cache Go build cache - reusing same cache key across all jobs
       - name: Cache Go build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -77,7 +77,7 @@ jobs:
       # Cache Go build cache for test results and compiled binaries
       # Using the same cache key as build.yaml to share cache across workflows
       - name: Cache Go build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -167,7 +167,7 @@ jobs:
 
       # Cache Go build cache - reusing same cache key as test jobs
       - name: Cache Go build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build

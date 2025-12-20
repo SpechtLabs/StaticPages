@@ -12,7 +12,7 @@ pre-commit = "v4.4.0"
 # Additional tools for development
 golangci-lint = "2.7.2"
 goreleaser = "2.12.0"
-kind = "0.30.0"
+kind = "0.31.0"
 kubectl = "1.35.0"
 markdownlint-cli2 = "0.20.0"
 

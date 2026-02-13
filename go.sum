@@ -282,6 +282,8 @@ github.com/ugorji/go/codec v1.3.1 h1:waO7eEiFDwidsBN6agj1vJQ4AG7lh2yqXyOXqhgQuyY
 github.com/ugorji/go/codec v1.3.1/go.mod h1:pRBVtBSKl77K30Bv8R2P+cLSGaTtex6fsA2Wjqmfxj4=
 github.com/zsais/go-gin-prometheus v1.0.2 h1:3asLqrFltMdItpgr/OS4hYc8pLq3HzMa5T1gYuXBIZ0=
 github.com/zsais/go-gin-prometheus v1.0.2/go.mod h1:iKBYSOHzvGfe2FyGSOC8JSwUA0MITdnYzI6v+aAbw1Q=
+github.com/zsais/go-gin-prometheus v1.0.3 h1:NIYXItaoGNiyDWXqrIzfQHWcRnen+iwgAw4sX/UieiM=
+github.com/zsais/go-gin-prometheus v1.0.3/go.mod h1:avQI7yOKIhpOi4QJxFZdmZb47AEjmS4MTC4Z6PsNmiA=
 go.etcd.io/bbolt v1.3.5 h1:XAzx9gjCb0Rxj7EoqcClPD1d5ZBxZJk0jbuoPHenBt0=
 go.etcd.io/bbolt v1.3.5/go.mod h1:G5EMThwa9y8QZGBClrRx5EY+Yw9kAhnjy3bSjsnlVTQ=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=

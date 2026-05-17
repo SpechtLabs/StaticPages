@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.100.1
 	github.com/aws/smithy-go v1.25.1
 	github.com/coreos/go-oidc/v3 v3.18.0
-	github.com/fsnotify/fsnotify v1.10.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-contrib/zap v1.1.7
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8

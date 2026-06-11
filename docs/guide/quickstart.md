@@ -77,6 +77,49 @@ configs:
 Environment variables like `ENV(APPLICATION_ID)` and `ENV(S3_SECRET)` should be defined via Kubernetes secrets and loaded through Helm's `extraEnvFrom` configuration.
 :::
 
+### Sharing settings across pages with `pageDefaults`
+
+If you host several sites from the same bucket and CDN, declare the shared
+settings once under a top-level `pageDefaults` block. Every entry in `pages` is
+deep-merged over it, so each page only needs the fields that differ:
+
+```yaml
+configs:
+  pageDefaults:
+    bucket:
+      region: eu-central-003
+      url: https://s3.eu-central-003.backblazeb2.com
+      name: static-pages
+      applicationId: ENV(APPLICATION_ID)
+      secret: ENV(S3_SECRET)
+    proxy:
+      url: https://cdn.specht-labs.de
+      path: file/static-pages
+      notFound: 404.html
+      searchPath: [.html, .htm, /index.html, /index.htm]
+    git:
+      provider: github
+      mainBranch: main
+    preview:
+      enabled: true
+      branch: true
+
+  pages:
+    - domain: prose.specht-labs.de
+      git: { repository: SpechtLabs/prose }
+
+    - domain: dev.specht-labs.de
+      git: { repository: SpechtLabs/tka }
+      preview: { enabled: false }   # overrides the default; `branch` stays inherited
+```
+
+Merge rules:
+
+- Nested blocks merge per field — a page that sets only `git.repository` keeps the default `git.provider` and `git.mainBranch`.
+- A field set on a page always wins, including a zero value: `preview.enabled: false` overrides a `true` default.
+- Lists replace rather than append; a page's `searchPath` fully supersedes the default one.
+- `domain` is always per page. Omit `pageDefaults` entirely and the config behaves exactly as before.
+
 ## 3. Set Up GitHub Action for Deployment
 
 Use the following step in your GitHub Actions workflow to deploy your static site:

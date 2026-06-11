@@ -7,31 +7,47 @@ proxy:
   maxIdleConnsPerHost: 500
   timeout: 30s
   compression: false
+  # Per-path HEAD probe timeout used while resolving a request to a backend
+  # object. A probe that exceeds this is treated as inconclusive (the object
+  # may still exist) and proxied anyway, rather than served as a 404.
+  probeTimeout: 2s
 
 output:
   format: long
 
+# Shared settings applied to every entry under `pages`. Each page is deep-merged
+# over this block, so a page only needs the fields that differ (usually just
+# `domain` + `git.repository`). Lists such as proxy.searchPath replace rather
+# than append, and an explicit value on a page always wins over the default.
+pageDefaults:
+  bucket:
+    region: eu-central-003
+    url: https://s3.eu-central-003.backblazeb2.com
+    name: cedi-testing
+    applicationId: ENV(APPLICATION_ID)
+    secret: ENV(S3_SECRET)
+  proxy:
+    url: https://cdn.specht-labs.de
+    path: file/cedi-testing
+    notFound: 404.html
+    # Probed in addition to the exact request path. Entries beginning with "."
+    # are filename suffixes for clean URLs (/guides/x -> /guides/x.html);
+    # entries beginning with "/" are directory indexes (/guides/ -> /guides/index.html).
+    searchPath:
+      - .html
+      - .htm
+      - /index.html
+      - /index.htm
+  git:
+    provider: github
+    mainBranch: main
+  preview:
+    enabled: true
+    branch: true
+    sha: false
+    environment: false
+
 pages:
-    - domain: tka.av0.de
-      bucket:
-        applicationId: ENV(APPLICATION_ID)
-        name: cedi-testing
-        region: eu-central-003
-        secret: ENV(S3_SECRET)
-        url: https://s3.eu-central-003.backblazeb2.com
-      git:
-        mainBranch: main
-        provider: github
-        repository: SpechtLabs/tka
-      preview:
-        branch: true
-        enabled: true
-        environment: false
-        sha: false
-      proxy:
-        notFound: 404.html
-        path: ""
-        searchPath:
-        - /index.html
-        - /index.htm
-        url: https://cdn.specht-labs.de
+  - domain: tka.av0.de
+    git:
+      repository: SpechtLabs/tka

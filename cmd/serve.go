@@ -8,6 +8,7 @@ import (
 	"github.com/SpechtLabs/StaticPages/pkg/api"
 	"github.com/SpechtLabs/StaticPages/pkg/proxy"
 	"github.com/fsnotify/fsnotify"
+	"github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -31,7 +32,14 @@ var serveCmd = &cobra.Command{
 	Short:   "Serves the static pages application",
 	Example: "staticpages serve --api --proxy",
 	Args:    cobra.ExactArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if !serveApi && !serveProxy {
+			return humane.New("Nothing to serve: neither the API nor the proxy was enabled",
+				"Pass --api to serve the upload API, --proxy to serve the reverse proxy, or both.",
+				"Example: staticpages serve --api --proxy",
+			)
+		}
+
 		p := proxy.NewProxy(configuration)
 		a := api.NewRestApi(configuration)
 
@@ -78,9 +86,10 @@ var serveCmd = &cobra.Command{
 
 		if serveProxy {
 			if err := p.Shutdown(); err != nil {
-				otelzap.L().WithError(err).Fatal("Unable to shutdown proxy")
-				return
+				return err
 			}
 		}
+
+		return nil
 	},
 }

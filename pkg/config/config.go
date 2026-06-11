@@ -20,6 +20,7 @@ func init() {
 	viper.SetDefault("proxy.maxIdleConnsPerHost", 100)
 	viper.SetDefault("proxy.timeout", "90s")
 	viper.SetDefault("proxy.compression", true)
+	viper.SetDefault("proxy.probeTimeout", "2s")
 }
 
 const (
@@ -42,6 +43,12 @@ type Proxy struct {
 	MaxIdleConnsPerHost int
 	Timeout             time.Duration
 	Compression         bool
+
+	// ProbeTimeout bounds each per-path HEAD probe issued while resolving a
+	// request to a backend object. A probe that exceeds this deadline is
+	// treated as inconclusive (the object may still exist) rather than as a
+	// definitive "not found".
+	ProbeTimeout time.Duration
 }
 
 type StaticPagesConfig struct {

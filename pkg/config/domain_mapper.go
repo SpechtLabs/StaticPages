@@ -18,9 +18,12 @@ func NewDomainMapperFromPages(pages []*Page) DomainMapper {
 		}
 
 		if p := pagesMap.Lookup(page.Domain.String()); p != nil {
-			otelzap.L().Warn("nested page domains configured!",
+			// Nested domains are expected (e.g. an apex page plus its
+			// subdomains); longest-prefix matching routes each to the most
+			// specific page. Log at debug for routing diagnostics only.
+			otelzap.L().Debug("nested page domain; longest-prefix match will route it",
 				zap.String("domain", page.Domain.String()),
-				zap.String("is_child_of", p.Domain.String()),
+				zap.String("parent_domain", p.Domain.String()),
 			)
 		}
 

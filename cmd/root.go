@@ -79,6 +79,10 @@ func readConfig() {
 		os.Exit(1)
 	}
 
+	// Expand the optional top-level pageDefaults block into each page before
+	// unmarshalling, so shared settings can be declared once.
+	config.ApplyPageDefaults(viper.GetViper())
+
 	if err := viper.Unmarshal(&configuration); err != nil {
 		herr := humane.Wrap(err, "Unable to parse config file", "Make sure the config file exists, is readable, and conforms to the format.")
 		fmt.Printf("Unable to read config file, assuming default values: %s\n", herr.Display())
@@ -90,21 +94,19 @@ func readConfig() {
 var RootCmd = &cobra.Command{
 	Use:   "staticpages",
 	Short: "A simple Static Pages Server for hosting your own static pages.",
+	// Render errors ourselves (as humane, advice-rich messages) in main rather
+	// than letting cobra print a terse "Error:" line and a usage dump.
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		readConfig()
 
 		if otelzap.L().Core().Enabled(zap.DebugLevel) {
 			file, err := os.ReadFile(viper.GetViper().ConfigFileUsed())
 			if err != nil {
-				herr := humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
-				panic(herr)
+				return humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
 			}
 			otelzap.L().Debug("Config file used", zap.String("config_file", string(file)))
-		}
-
-		if !serveApi && !serveProxy {
-			err := humane.New("Unable to start StaticPages server.", "You need to specify at least one of the following options: --api, --proxy")
-			panic(err)
 		}
 
 		return nil

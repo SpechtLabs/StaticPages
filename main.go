@@ -7,6 +7,7 @@ import (
 
 	"github.com/SpechtLabs/StaticPages/cmd"
 	"github.com/gin-gonic/gin"
+	"github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spechtlabs/go-otel-utils/otelprovider"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
 	"github.com/spf13/cobra"
@@ -100,7 +101,13 @@ func main() {
 	cmd.RootCmd.AddCommand(versionCmd)
 	err = cmd.RootCmd.Execute()
 	if err != nil {
-		fmt.Println(err)
+		// Render humane errors with their advice; fall back to a plain message
+		// for everything else. Either way: a clean message, never a panic.
+		if herr, ok := err.(humane.Error); ok {
+			fmt.Println(herr.Display())
+		} else {
+			fmt.Println(err)
+		}
 		os.Exit(1)
 	}
 }

@@ -2,9 +2,10 @@
 # Go version from your go.mod file
 go = "1.26.4"
 
-# Node.js for JavaScript/TypeScript
+# JavaScript/TypeScript toolchain (bun is the package manager + runtime for docs)
 node = "24.15.0"
 npm = "11.15.0"
+bun = "1.3.14"
 
 # Pre-commit for Git hooks
 pre-commit = "4.6.0"

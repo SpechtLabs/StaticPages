@@ -23,7 +23,16 @@ export default defineUserConfig({
     ['link', { rel: 'icon', type: 'image/png', href: '/images/specht.png' }],
   ],
 
-  bundler: viteBundler(),
+  // rolldown-vite (pulled in by @vuepress/bundler-vite) minifies CSS with
+  // lightningcss by default, which chokes on the theme's CSS
+  // ("[lightningcss minify] Unexpected end of input"). Use esbuild instead.
+  bundler: viteBundler({
+    viteOptions: {
+      build: {
+        cssMinify: 'esbuild',
+      },
+    },
+  }),
   shouldPrefetch: false,
 
   extendsMarkdown: (md) => {

@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.2.0](https://github.com/SpechtLabs/StaticPages/compare/v0.1.5...v0.2.0) (2026-06-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **proxy:** the configured not-found page is now served with HTTP 404 instead of 200, and searchPath entries beginning with "." are treated as filename suffixes (clean URLs) rather than sub-paths.
+
+### Features
+
+* **proxy:** reliability fixes, clean-URL resolution, and pageDefaults config ([3eb6b53](https://github.com/SpechtLabs/StaticPages/commit/3eb6b53ebc8930cb0cc1867a9494cce71c0138d2))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#132](https://github.com/SpechtLabs/StaticPages/issues/132)) ([ad17a4d](https://github.com/SpechtLabs/StaticPages/commit/ad17a4dcd219a1ee138d40669d6bfb5f2c96adb8))
+* **deps:** update aws-sdk-go-v2 monorepo ([#142](https://github.com/SpechtLabs/StaticPages/issues/142)) ([f36da86](https://github.com/SpechtLabs/StaticPages/commit/f36da8682c03fefc8d66204442e89f6607f9920f))
+* **deps:** update aws-sdk-go-v2 monorepo ([#150](https://github.com/SpechtLabs/StaticPages/issues/150)) ([5c5df36](https://github.com/SpechtLabs/StaticPages/commit/5c5df366177b7efbfdf694c27495ca91dd4cb691))
+* **deps:** update aws-sdk-go-v2 monorepo ([#163](https://github.com/SpechtLabs/StaticPages/issues/163)) ([d670914](https://github.com/SpechtLabs/StaticPages/commit/d67091490811e1cdb38babac8d593cdd0e58a758))
+* **deps:** update aws-sdk-go-v2 monorepo ([#197](https://github.com/SpechtLabs/StaticPages/issues/197)) ([4a5c8d2](https://github.com/SpechtLabs/StaticPages/commit/4a5c8d2709b9e4e9a5455caba8389b9b96d4866a))
+* **deps:** update aws-sdk-go-v2 monorepo ([#214](https://github.com/SpechtLabs/StaticPages/issues/214)) ([537ec85](https://github.com/SpechtLabs/StaticPages/commit/537ec859eac5b9d554a0c33584bbaf3cb28978e7))
+* **deps:** update aws-sdk-go-v2 monorepo ([#222](https://github.com/SpechtLabs/StaticPages/issues/222)) ([d35aa00](https://github.com/SpechtLabs/StaticPages/commit/d35aa00106d7335048e013af3e0eb97b8030bd2c))
+* **deps:** update aws-sdk-go-v2 monorepo ([#231](https://github.com/SpechtLabs/StaticPages/issues/231)) ([aa344d9](https://github.com/SpechtLabs/StaticPages/commit/aa344d94cf1c7b48b80c92a7ae8fe8214ec7b7ee))
+* **deps:** update aws-sdk-go-v2 monorepo ([#249](https://github.com/SpechtLabs/StaticPages/issues/249)) ([951da81](https://github.com/SpechtLabs/StaticPages/commit/951da81314fcdb9539d2aa6a26aa1cf2170a271e))
+* **deps:** update aws-sdk-go-v2 monorepo ([#272](https://github.com/SpechtLabs/StaticPages/issues/272)) ([119163e](https://github.com/SpechtLabs/StaticPages/commit/119163e460dbf29661a118d66eeefb7209651a9c))
+* **deps:** update aws-sdk-go-v2 monorepo ([#278](https://github.com/SpechtLabs/StaticPages/issues/278)) ([a723b2e](https://github.com/SpechtLabs/StaticPages/commit/a723b2ec283e76face22fd070b697daa2285e0a6))
+* **deps:** update aws-sdk-go-v2 monorepo ([#283](https://github.com/SpechtLabs/StaticPages/issues/283)) ([6e1b24b](https://github.com/SpechtLabs/StaticPages/commit/6e1b24b3b2d351cc7a0e78a34125bb1892dda2a2))
+* **deps:** update github.com/johannesboyne/gofakes3 digest to 4c385a1 ([#178](https://github.com/SpechtLabs/StaticPages/issues/178)) ([688767a](https://github.com/SpechtLabs/StaticPages/commit/688767aac7d8dafab51545128d0552f2514af079))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/credentials to v1.19.9 ([#190](https://github.com/SpechtLabs/StaticPages/issues/190)) ([e5f8b4e](https://github.com/SpechtLabs/StaticPages/commit/e5f8b4eff208918f1c7b5ea3a82e6e9dcb7a6bd8))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.100.0 ([#245](https://github.com/SpechtLabs/StaticPages/issues/245)) ([1855ec8](https://github.com/SpechtLabs/StaticPages/commit/1855ec81f2633f5f57b7fc789b3321f768ae74eb))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.95.0 ([#157](https://github.com/SpechtLabs/StaticPages/issues/157)) ([2d0217a](https://github.com/SpechtLabs/StaticPages/commit/2d0217a6aad9d824fb162de60c1a7708af171d8c))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.96.0 ([#172](https://github.com/SpechtLabs/StaticPages/issues/172)) ([16f3083](https://github.com/SpechtLabs/StaticPages/commit/16f3083987cd7a586b6801a5f2602918275f574c))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.96.2 ([#203](https://github.com/SpechtLabs/StaticPages/issues/203)) ([bf092c9](https://github.com/SpechtLabs/StaticPages/commit/bf092c937f6fc333ad612509ba6dc7ed7d1bb364))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.97.3 [security] ([#227](https://github.com/SpechtLabs/StaticPages/issues/227)) ([a85152c](https://github.com/SpechtLabs/StaticPages/commit/a85152cd84aa38483171a79365fd499eb92858eb))
+* **deps:** update module github.com/aws/smithy-go to v1.24.0 ([#128](https://github.com/SpechtLabs/StaticPages/issues/128)) ([5c3e21f](https://github.com/SpechtLabs/StaticPages/commit/5c3e21f6636fc9a93f2c41e6fc696aafe9981047))
+* **deps:** update module github.com/aws/smithy-go to v1.24.1 ([#194](https://github.com/SpechtLabs/StaticPages/issues/194)) ([9baa32e](https://github.com/SpechtLabs/StaticPages/commit/9baa32efe0758f752b951f0d63bee1e42354cf66))
+* **deps:** update module github.com/aws/smithy-go to v1.24.2 ([#204](https://github.com/SpechtLabs/StaticPages/issues/204)) ([9c03185](https://github.com/SpechtLabs/StaticPages/commit/9c0318555b457e3a5b3063739cd0c5983a898d32))
+* **deps:** update module github.com/aws/smithy-go to v1.25.1 ([#239](https://github.com/SpechtLabs/StaticPages/issues/239)) ([1d3dcf2](https://github.com/SpechtLabs/StaticPages/commit/1d3dcf25e7cc483ec59773b9f8a8e91b37cca00f))
+* **deps:** update module github.com/aws/smithy-go to v1.27.2 ([#284](https://github.com/SpechtLabs/StaticPages/issues/284)) ([aac1434](https://github.com/SpechtLabs/StaticPages/commit/aac1434ab62ff8077239f25e445069effab16f19))
+* **deps:** update module github.com/coreos/go-oidc/v3 to v3.18.0 ([#246](https://github.com/SpechtLabs/StaticPages/issues/246)) ([88b29ef](https://github.com/SpechtLabs/StaticPages/commit/88b29ef890608af75100b4d2f0a2e9187c5a85e3))
+* **deps:** update module github.com/fsnotify/fsnotify to v1.10.0 ([#250](https://github.com/SpechtLabs/StaticPages/issues/250)) ([fb3a021](https://github.com/SpechtLabs/StaticPages/commit/fb3a021aa97265fa87f8927360ff9b44d024ea87))
+* **deps:** update module github.com/fsnotify/fsnotify to v1.10.1 ([#267](https://github.com/SpechtLabs/StaticPages/issues/267)) ([470dfd0](https://github.com/SpechtLabs/StaticPages/commit/470dfd054409ca7ba542829c642d5a7a4b4fd2d9))
+* **deps:** update module github.com/gin-contrib/zap to v1.1.7 ([#234](https://github.com/SpechtLabs/StaticPages/issues/234)) ([a267e43](https://github.com/SpechtLabs/StaticPages/commit/a267e434747912a7a0ef8978cade021c5d955248))
+* **deps:** update module github.com/gin-gonic/gin to v1.12.0 ([#205](https://github.com/SpechtLabs/StaticPages/issues/205)) ([9aa7a31](https://github.com/SpechtLabs/StaticPages/commit/9aa7a313e26b01af0531b45c43f4282397f0e631))
+* **deps:** update module github.com/spf13/cobra to v1.10.2 ([#133](https://github.com/SpechtLabs/StaticPages/issues/133)) ([ccd0ee0](https://github.com/SpechtLabs/StaticPages/commit/ccd0ee0ac5b6ddfa78ce373b265d8b0c1f51b613))
+* **deps:** update module github.com/zsais/go-gin-prometheus to v1.0.3 ([#183](https://github.com/SpechtLabs/StaticPages/issues/183)) ([0b5a576](https://github.com/SpechtLabs/StaticPages/commit/0b5a576156b92d2c92fd55083a141cda1a1f6170))
+* **deps:** update module go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin to v0.64.0 ([#139](https://github.com/SpechtLabs/StaticPages/issues/139)) ([b60adbe](https://github.com/SpechtLabs/StaticPages/commit/b60adbe149258dfc434665d9e58c264f61428ccf))
+* **deps:** update module go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin to v0.65.0 ([#175](https://github.com/SpechtLabs/StaticPages/issues/175)) ([53aea85](https://github.com/SpechtLabs/StaticPages/commit/53aea851a5b29cb8cce3673b1e53e57c36fd7636))
+* **deps:** update module go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin to v0.66.0 ([#208](https://github.com/SpechtLabs/StaticPages/issues/208)) ([b6ed096](https://github.com/SpechtLabs/StaticPages/commit/b6ed0964ad56246b95af88bbdc6d2900150705be))
+* **deps:** update module go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin to v0.67.0 ([#217](https://github.com/SpechtLabs/StaticPages/issues/217)) ([09b79e0](https://github.com/SpechtLabs/StaticPages/commit/09b79e039be68221e90f2311c0fe17316c076d39))
+* **deps:** update module go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin to v0.68.0 ([#252](https://github.com/SpechtLabs/StaticPages/issues/252)) ([ea5858c](https://github.com/SpechtLabs/StaticPages/commit/ea5858cf0cd30db4f0a1b605cbbc8027e0515471))
+* **deps:** update module go.uber.org/zap to v1.28.0 ([#256](https://github.com/SpechtLabs/StaticPages/issues/256)) ([4bdbfd4](https://github.com/SpechtLabs/StaticPages/commit/4bdbfd4f87d0e8d1cf3d9c16f65d1234ec38f235))
+* **deps:** update opentelemetry-go monorepo to v1.42.0 ([#209](https://github.com/SpechtLabs/StaticPages/issues/209)) ([56b6cb6](https://github.com/SpechtLabs/StaticPages/commit/56b6cb6ffb49655cb3911d0fa7a1a535c7bcb7e7))
+* **deps:** update opentelemetry-go monorepo to v1.42.0 ([#209](https://github.com/SpechtLabs/StaticPages/issues/209)) ([41ed272](https://github.com/SpechtLabs/StaticPages/commit/41ed2726416e093bde1da43fb1cfc4412effd6a7))
+
 ## [0.1.5](https://github.com/SpechtLabs/StaticPages/compare/v0.1.4...v0.1.5) (2025-11-30)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/SpechtLabs/StaticPages/compare/v0.2.0...v0.2.1) (2026-06-12)
+
+
+### Features
+
+* **observability:** richer span attributes, AWS SDK tracing, single log format ([70e6a25](https://github.com/SpechtLabs/StaticPages/commit/70e6a2533c01c331a46e59ff974adf82bf96ce67))
+
 ## [0.2.0](https://github.com/SpechtLabs/StaticPages/compare/v0.1.5...v0.2.0) (2026-06-11)
 
 

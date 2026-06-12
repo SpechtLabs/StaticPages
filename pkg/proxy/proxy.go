@@ -272,6 +272,12 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 		}
 	}
 
+	span.SetAttributes(
+		attribute.String("proxy.domain", page.Domain.String()),
+		attribute.String("proxy.subdomain", sub),
+		attribute.String("proxy.resolved_sha", resolvedSHA),
+		attribute.String("proxy.repository", page.Git.Repository),
+	)
 	otelzap.L().Ctx(ctx).Debug("resolved commit for request",
 		zap.String("request_url", requestUrl),
 		zap.String("subdomain", sub),
@@ -297,6 +303,10 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 		zap.Strings("search_paths", page.Proxy.SearchPath))
 
 	if targetPath, lErr := p.lookupPath(ctx, page, requestUrl, backendUrl, lookupRequestPath); lErr == nil {
+		span.SetAttributes(
+			attribute.String("proxy.resolved_path", targetPath),
+			attribute.Bool("proxy.not_found_fallback", false),
+		)
 		otelzap.L().Ctx(ctx).Debug("successfully resolved path",
 			zap.String("request_path", originalPath),
 			zap.String("target_path", targetPath))
@@ -327,6 +337,10 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 			"Configure a valid pages[].proxy.notFound document to serve for missing paths.")
 	}
 
+	span.SetAttributes(
+		attribute.String("proxy.resolved_path", targetPath),
+		attribute.Bool("proxy.not_found_fallback", true),
+	)
 	otelzap.L().Ctx(ctx).Info("serving 404 page",
 		zap.String("request_path", originalPath),
 		zap.String("404_path", targetPath))
@@ -663,12 +677,14 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 		// caller can still proxy the object rather than treating it as a hard
 		// 404. A definitive negative only comes from an actual HTTP response.
 		if isProbeTimeout(err) {
+			span.SetAttributes(attribute.String("proxy.probe.outcome", "inconclusive"))
 			otelzap.L().Ctx(ctx).Debug("path probe timed out (inconclusive)",
 				zap.String("full_url", fullURLString),
 				zap.Duration("probe_timeout", probeTimeout))
 			return statusProbeInconclusive, err
 		}
 
+		span.SetAttributes(attribute.String("proxy.probe.outcome", "error"))
 		if !errors.Is(err, context.Canceled) {
 			otelzap.L().WithError(err).Ctx(ctx).Warn("failed to probe path",
 				zap.String("proxy_host", url.String()),
@@ -685,7 +701,14 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 		}
 	}(resp.Body)
 
-	span.SetAttributes(attribute.Int("code", resp.StatusCode))
+	probeOutcome := "hit"
+	if resp.StatusCode >= http.StatusBadRequest {
+		probeOutcome = "miss"
+	}
+	span.SetAttributes(
+		attribute.Int("http.status_code", resp.StatusCode),
+		attribute.String("proxy.probe.outcome", probeOutcome),
+	)
 
 	if resp.StatusCode >= 400 {
 		otelzap.L().Ctx(ctx).Debug("path probe returned unsuccessful status",
@@ -822,6 +845,10 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 	case p, ok := <-foundPath:
 		if ok {
 			cancelProbes()
+			span.SetAttributes(
+				attribute.String("proxy.lookup.outcome", "found"),
+				attribute.String("proxy.lookup.resolved_path", p),
+			)
 			return p, nil
 		}
 
@@ -834,12 +861,20 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 		primary := inconclusivePrimary
 		inconclusiveMu.Unlock()
 		if primary != "" {
+			span.SetAttributes(
+				attribute.String("proxy.lookup.outcome", "inconclusive_proxied"),
+				attribute.String("proxy.lookup.resolved_path", primary),
+			)
 			otelzap.L().Ctx(ctx).Info("primary path probe inconclusive; proxying object without confirmation",
 				zap.String("target_path", targetPath),
 				zap.String("path_to_return", primary))
 			return primary, nil
 		}
 
+		span.SetAttributes(
+			attribute.String("proxy.lookup.outcome", "not_found"),
+			attribute.StringSlice("proxy.lookup.tested_paths", testedPaths),
+		)
 		otelzap.L().Ctx(ctx).Warn("no valid path found after testing all options",
 			zap.String("target_path", targetPath),
 			zap.Strings("tested_paths", testedPaths),
@@ -847,6 +882,10 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 
 		return "", humane.New("No valid path found", "Make sure the path exists and is accessible.")
 	case <-probeCtx.Done():
+		span.SetAttributes(
+			attribute.String("proxy.lookup.outcome", "timeout"),
+			attribute.StringSlice("proxy.lookup.tested_paths", testedPaths),
+		)
 		otelzap.L().Ctx(ctx).Warn("path lookup timed out",
 			zap.String("target_path", targetPath),
 			zap.Strings("tested_paths", testedPaths))

@@ -18,7 +18,9 @@ import (
 	"github.com/aws/smithy-go"
 	"github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -55,6 +57,10 @@ func NewS3PageClient(page *config.Page, options ...S3ClientOption) *S3PageClient
 	for _, option := range options {
 		option(client)
 	}
+
+	// Instrument the AWS SDK so each S3 call to the storage backend (Backblaze)
+	// is emitted as a child span under the calling operation.
+	otelaws.AppendMiddlewares(&client.s3Options.APIOptions)
 
 	client.client = s3.New(client.s3Options)
 
@@ -271,6 +277,12 @@ func (c *S3PageClient) DownloadPageIndex(ctx context.Context) (PageIndex, humane
 	// Convert Windows path separators to forward slashes
 	s3Key := filepath.ToSlash(path.Join(c.repository, "index.yaml"))
 
+	span.SetAttributes(
+		attribute.String("s3.endpoint", c.s3Endpoint),
+		attribute.String("s3.bucket", c.s3BucketName),
+		attribute.String("s3.key", s3Key),
+	)
+
 	resp, err := c.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(c.s3BucketName),
 		Key:    aws.String(s3Key),
@@ -304,6 +316,7 @@ func (c *S3PageClient) DownloadPageIndex(ctx context.Context) (PageIndex, humane
 		return nil, humane.Wrap(err, "failed to unmarshal metadata from S3")
 	}
 
+	span.SetAttributes(attribute.Int("page_index.entries", len(metadata)))
 	span.SetStatus(codes.Ok, "")
 	return metadata, nil
 }

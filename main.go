@@ -33,10 +33,6 @@ var (
 )
 
 func main() {
-	logProvider := otelprovider.NewLogger(
-		otelprovider.WithLogAutomaticEnv(),
-	)
-
 	traceProvider := otelprovider.NewTracer(
 		otelprovider.WithTraceAutomaticEnv(),
 	)
@@ -63,14 +59,16 @@ func main() {
 	// Redirect stdlib log to zap
 	undoStdLogRedirect := zap.RedirectStdLog(zapLogger)
 
-	// Create otelLogger
+	// Create otelLogger. We deliberately do NOT wire an OTLP log provider:
+	// logs are emitted as structured JSON on stdout and scraped into Loki by
+	// Alloy. Exporting via OTLP as well would double-ingest every log in two
+	// different formats. Traces still go out over OTLP via traceProvider.
 	otelZapLogger := otelzap.New(zapLogger,
 		otelzap.WithCaller(true),
 		otelzap.WithMinLevel(zap.InfoLevel),
 		otelzap.WithAnnotateLevel(zap.WarnLevel),
 		otelzap.WithErrorStatusLevel(zap.ErrorLevel),
 		otelzap.WithStackTrace(false),
-		otelzap.WithLoggerProvider(logProvider),
 	)
 
 	// Replace global otelZap logger
@@ -81,15 +79,7 @@ func main() {
 			otelzap.L().Warn("failed to flush traces")
 		}
 
-		if err := logProvider.ForceFlush(context.Background()); err != nil {
-			otelzap.L().Warn("failed to flush logs")
-		}
-
 		if err := traceProvider.Shutdown(context.Background()); err != nil {
-			panic(err)
-		}
-
-		if err := logProvider.Shutdown(context.Background()); err != nil {
 			panic(err)
 		}
 

@@ -4,7 +4,7 @@ go = "1.26.4"
 
 # JavaScript/TypeScript toolchain (bun is the package manager + runtime for docs)
 node = "24.15.0"
-npm = "11.15.0"
+npm = "11.17.0"
 bun = "1.3.14"
 
 # Pre-commit for Git hooks

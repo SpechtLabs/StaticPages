@@ -13,7 +13,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20260208201424-4c385a1f6a73
-	github.com/sierrasoftworks/humane-errors-go v0.0.0-20260428132744-178d2d0aad2c
+	github.com/sierrasoftworks/humane-errors-go v0.0.0-20260619132337-5754e417d028
 	github.com/spechtlabs/go-otel-utils/otelprovider v0.1.1
 	github.com/spechtlabs/go-otel-utils/otelzap v0.1.1
 	github.com/spf13/cast v1.10.0

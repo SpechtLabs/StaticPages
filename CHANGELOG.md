@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.2](https://github.com/SpechtLabs/StaticPages/compare/v0.2.1...v0.2.2) (2026-07-03)
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#298](https://github.com/SpechtLabs/StaticPages/issues/298)) ([9447043](https://github.com/SpechtLabs/StaticPages/commit/9447043b0cd418e8885575d40f353a35abb3edce))
+* **deps:** update aws-sdk-go-v2 monorepo ([#311](https://github.com/SpechtLabs/StaticPages/issues/311)) ([93c6950](https://github.com/SpechtLabs/StaticPages/commit/93c6950fb902f3ad001cd91fb4efe78f17d32175))
+* **deps:** update aws-sdk-go-v2 monorepo to v1.104.0 ([#301](https://github.com/SpechtLabs/StaticPages/issues/301)) ([8492bda](https://github.com/SpechtLabs/StaticPages/commit/8492bda9993c34f9c9d41ceae882d2294cc549f1))
+* **deps:** update module github.com/aws/smithy-go to v1.27.3 ([#309](https://github.com/SpechtLabs/StaticPages/issues/309)) ([8da627d](https://github.com/SpechtLabs/StaticPages/commit/8da627d1f9b5e31fa78ac6dde5a5e448b10571ac))
+* **deps:** update module github.com/coreos/go-oidc/v3 to v3.19.0 ([#304](https://github.com/SpechtLabs/StaticPages/issues/304)) ([14e704f](https://github.com/SpechtLabs/StaticPages/commit/14e704f5d38f727830eda9bd7e300197d00d8bd7))
+* **deps:** update module github.com/jellydator/ttlcache/v3 to v3.4.1 ([#307](https://github.com/SpechtLabs/StaticPages/issues/307)) ([5d089fa](https://github.com/SpechtLabs/StaticPages/commit/5d089fa7f16202c94e48d56e93d57f51f144a665))
+* **deps:** update opentelemetry-go-contrib monorepo to v0.69.0 ([#299](https://github.com/SpechtLabs/StaticPages/issues/299)) ([3611b48](https://github.com/SpechtLabs/StaticPages/commit/3611b48cc25ad2b03c12ee7f09dc0fcd8aea6356))
+
 ## [0.2.1](https://github.com/SpechtLabs/StaticPages/compare/v0.2.0...v0.2.1) (2026-06-12)
 
 

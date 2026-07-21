@@ -8,7 +8,7 @@ npm = "11.18.0"
 bun = "1.3.14"
 
 # Pre-commit for Git hooks
-pre-commit = "4.6.0"
+pre-commit = "4.6.1"
 
 # Additional tools for development
 golangci-lint = "2.12.2"

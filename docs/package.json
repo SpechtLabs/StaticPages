@@ -35,7 +35,7 @@
   "dependencies": {
     "@vue/component-compiler-utils": "^3.3.0",
     "lru-cache": "^11.5.2",
-    "markdown-it-emoji": "^3.0.0",
+    "markdown-it-emoji": "^3.1.0",
     "mermaid": "^11.16.0",
     "vue-template-compiler": "^2.7.16"
   },

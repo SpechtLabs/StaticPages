@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.2](https://github.com/SpechtLabs/StaticPages/compare/v0.2.1...v0.2.2) (2026-07-24)
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#298](https://github.com/SpechtLabs/StaticPages/issues/298)) ([9447043](https://github.com/SpechtLabs/StaticPages/commit/9447043b0cd418e8885575d40f353a35abb3edce))
+* **deps:** update aws-sdk-go-v2 monorepo ([#311](https://github.com/SpechtLabs/StaticPages/issues/311)) ([93c6950](https://github.com/SpechtLabs/StaticPages/commit/93c6950fb902f3ad001cd91fb4efe78f17d32175))
+* **deps:** update aws-sdk-go-v2 monorepo ([#316](https://github.com/SpechtLabs/StaticPages/issues/316)) ([dcb5e28](https://github.com/SpechtLabs/StaticPages/commit/dcb5e28360c849cf3eaad3d5601aae3d89092a97))
+* **deps:** update aws-sdk-go-v2 monorepo to v1.104.0 ([#301](https://github.com/SpechtLabs/StaticPages/issues/301)) ([8492bda](https://github.com/SpechtLabs/StaticPages/commit/8492bda9993c34f9c9d41ceae882d2294cc549f1))
+* **deps:** update dependency markdown-it-emoji to ^3.1.0 ([#336](https://github.com/SpechtLabs/StaticPages/issues/336)) ([38670e8](https://github.com/SpechtLabs/StaticPages/commit/38670e8f0b40306b43fa06c47406ef7f3756d886))
+* **deps:** update docs dependencies ([#326](https://github.com/SpechtLabs/StaticPages/issues/326)) ([18f1d02](https://github.com/SpechtLabs/StaticPages/commit/18f1d02d02d12e25f38619ecaafa24f7ee975b7b))
+* **deps:** update go modules ([#327](https://github.com/SpechtLabs/StaticPages/issues/327)) ([c5d3a0f](https://github.com/SpechtLabs/StaticPages/commit/c5d3a0fb58f4060fd0c388029d99f10f56e1bdcc))
+* **deps:** update go modules ([#331](https://github.com/SpechtLabs/StaticPages/issues/331)) ([a807de6](https://github.com/SpechtLabs/StaticPages/commit/a807de65ac76ac80fbeea18c1cf417e16e08ad5f))
+* **deps:** update go modules ([#335](https://github.com/SpechtLabs/StaticPages/issues/335)) ([aab5465](https://github.com/SpechtLabs/StaticPages/commit/aab5465603f89fd98882e11df02cc4d1ab017c7f))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/credentials to v1.19.28 ([#321](https://github.com/SpechtLabs/StaticPages/issues/321)) ([afa5078](https://github.com/SpechtLabs/StaticPages/commit/afa5078ab0dd12dcf206a0027cec9bf47b406e26))
+* **deps:** update module github.com/aws/smithy-go to v1.27.3 ([#309](https://github.com/SpechtLabs/StaticPages/issues/309)) ([8da627d](https://github.com/SpechtLabs/StaticPages/commit/8da627d1f9b5e31fa78ac6dde5a5e448b10571ac))
+* **deps:** update module github.com/coreos/go-oidc/v3 to v3.19.0 ([#304](https://github.com/SpechtLabs/StaticPages/issues/304)) ([14e704f](https://github.com/SpechtLabs/StaticPages/commit/14e704f5d38f727830eda9bd7e300197d00d8bd7))
+* **deps:** update module github.com/coreos/go-oidc/v3 to v3.20.0 ([#322](https://github.com/SpechtLabs/StaticPages/issues/322)) ([b1d3889](https://github.com/SpechtLabs/StaticPages/commit/b1d388953d99214c6deee1ff15375fc314cc303c))
+* **deps:** update module github.com/jellydator/ttlcache/v3 to v3.4.1 ([#307](https://github.com/SpechtLabs/StaticPages/issues/307)) ([5d089fa](https://github.com/SpechtLabs/StaticPages/commit/5d089fa7f16202c94e48d56e93d57f51f144a665))
+* **deps:** update opentelemetry-go-contrib monorepo to v0.69.0 ([#299](https://github.com/SpechtLabs/StaticPages/issues/299)) ([3611b48](https://github.com/SpechtLabs/StaticPages/commit/3611b48cc25ad2b03c12ee7f09dc0fcd8aea6356))
+
 ## [0.2.1](https://github.com/SpechtLabs/StaticPages/compare/v0.2.0...v0.2.1) (2026-06-12)
 
 

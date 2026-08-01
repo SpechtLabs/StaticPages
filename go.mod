@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.43.3
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.32
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.33
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.3
 	github.com/aws/smithy-go v1.27.6
 	github.com/coreos/go-oidc/v3 v3.20.0

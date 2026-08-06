@@ -28,7 +28,7 @@
     "http-server": "^14.1.1",
     "sass-embedded": "^1.100.0",
     "typescript": "^6.0.3",
-    "vue": "^3.5.40",
+    "vue": "^3.5.41",
     "vuepress": "2.0.0-rc.31",
     "vuepress-theme-plume": "1.0.0-rc.204"
   },
@@ -36,7 +36,7 @@
     "@vue/component-compiler-utils": "^3.3.0",
     "lru-cache": "^11.5.2",
     "markdown-it-emoji": "^3.1.0",
-    "mermaid": "^11.16.0",
+    "mermaid": "^11.16.1",
     "vue-template-compiler": "^2.7.16"
   },
   "optionalDependencies": {

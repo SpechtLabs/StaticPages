@@ -1,6 +1,6 @@
 [tools]
 # Go version from your go.mod file
-go = "1.26.5"
+go = "1.26.6"
 
 # JavaScript/TypeScript toolchain (bun is the package manager + runtime for docs)
 node = "24.19.0"

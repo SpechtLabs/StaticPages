@@ -3,10 +3,10 @@ module github.com/SpechtLabs/StaticPages
 go 1.27.0
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.7
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.37
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.3
-	github.com/aws/smithy-go v1.27.9
+	github.com/aws/aws-sdk-go-v2 v1.43.8
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.38
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.4
+	github.com/aws/smithy-go v1.28.0
 	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-contrib/zap v1.1.7
@@ -23,23 +23,23 @@ require (
 	github.com/zsais/go-gin-prometheus v1.0.3
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.70.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.70.0
-	go.opentelemetry.io/otel v1.45.0
-	go.opentelemetry.io/otel/trace v1.45.0
+	go.opentelemetry.io/otel v1.46.0
+	go.opentelemetry.io/otel/trace v1.46.0
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.18 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.38 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.38 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.39 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.19 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.39 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.39 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.40 // indirect
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.62.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.17 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.31 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.18 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.32 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.12.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.38 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.39 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.39 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.40 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sns v1.42.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.46.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -96,7 +96,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.44.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0 // indirect
 	go.opentelemetry.io/otel/log v0.20.0 // indirect
-	go.opentelemetry.io/otel/metric v1.45.0 // indirect
+	go.opentelemetry.io/otel/metric v1.46.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.45.0 // indirect
 	go.opentelemetry.io/otel/sdk/log v0.20.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect

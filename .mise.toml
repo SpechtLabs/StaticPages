@@ -14,7 +14,7 @@ pre-commit = "4.6.2"
 golangci-lint = "2.13.1"
 goreleaser = "2.18.0"
 kind = "0.32.0"
-kubectl = "1.36.4"
+kubectl = "1.37.0"
 markdownlint-cli2 = "0.23.2"
 
 swag = "1.16.6"

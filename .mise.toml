@@ -3,7 +3,7 @@
 go = "1.27.0"
 
 # JavaScript/TypeScript toolchain (bun is the package manager + runtime for docs)
-node = "24.19.0"
+node = "24.20.0"
 npm = "11.18.0"
 bun = "1.4.0"
 

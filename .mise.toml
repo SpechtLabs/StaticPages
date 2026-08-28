@@ -11,7 +11,7 @@ bun = "1.4.0"
 pre-commit = "4.6.2"
 
 # Additional tools for development
-golangci-lint = "2.13.1"
+golangci-lint = "2.13.2"
 goreleaser = "2.18.0"
 kind = "0.33.0"
 kubectl = "1.37.0"

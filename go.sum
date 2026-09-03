@@ -74,6 +74,8 @@ github.com/aws/aws-sdk-go-v2/credentials v1.20.0 h1:SuE9Ay1AQmKTFRLQiJ4yo1MOQH3p
 github.com/aws/aws-sdk-go-v2/credentials v1.20.0/go.mod h1:fxvWPM2xG890LalTf2BEF8ehYwvPHXeIDs+PmkHvyeI=
 github.com/aws/aws-sdk-go-v2/credentials v1.20.1 h1:Z8GRNEx0u9sDkZOq4PUnN8mjGwbUQGRzMSXpvt3d8xQ=
 github.com/aws/aws-sdk-go-v2/credentials v1.20.1/go.mod h1:uBIK00kFo95dnemqfFMTWx0X8YRqsh6ecIoCjjOkZqM=
+github.com/aws/aws-sdk-go-v2/credentials v1.20.2 h1:VQjZODPNfdikCX2ZZrltw4zNLkcwjyUFDUl2vT9yTwg=
+github.com/aws/aws-sdk-go-v2/credentials v1.20.2/go.mod h1:OmeHCn28vZylsBvalLDf7t8fuJ2rHYQprJs+7WuxniI=
 github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.75 h1:S61/E3N01oral6B3y9hZ2E1iFDqCZPPOBoBQretCnBI=
 github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.75/go.mod h1:bDMQbkI1vJbNjnvJYpPTSNYBkI/VIv18ngWb/K84tkk=
 github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.28 h1:Xf2j7NdVcUKomlZ4iihOP4AZ3Fzlr8h4yKpXeP+OFPg=
@@ -300,6 +302,8 @@ github.com/aws/aws-sdk-go-v2/service/s3 v1.107.4 h1:R1hIw5Z7OqINqgYo5LykHQo2BWbc
 github.com/aws/aws-sdk-go-v2/service/s3 v1.107.4/go.mod h1:oinlf/VTl4hAUctSvIaOPKOZbckTIaWzYj96MRbPKb4=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.109.1 h1:kVpzaDBzOdRtOftmiSpTdQbWVqRg0kONLXijktiwXnk=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.109.1/go.mod h1:CUr46sCpGAg/rHaclRyhJX0LJAmH73uWSJPPSaMUrSk=
+github.com/aws/aws-sdk-go-v2/service/s3 v1.110.0 h1:He8vaTTqAAJrux/KdpjFXNWueLJZyKqE49QEXoqAu4I=
+github.com/aws/aws-sdk-go-v2/service/s3 v1.110.0/go.mod h1:CUr46sCpGAg/rHaclRyhJX0LJAmH73uWSJPPSaMUrSk=
 github.com/aws/aws-sdk-go-v2/service/sns v1.39.17 h1:synXIPC/L4Cc489P0XDcrVJzHSLj7krKRpFLalbGM2k=
 github.com/aws/aws-sdk-go-v2/service/sns v1.39.17/go.mod h1:4ABZnI23uNK37waIjGwkubnCwGhepIt9x1GvASfljJA=
 github.com/aws/aws-sdk-go-v2/service/sns v1.42.3 h1:OwgPz7N9WoZKkyQBR6pF8GVDHM8zKbBeZen4g5d0SHE=
@@ -362,6 +366,8 @@ github.com/coreos/go-oidc/v3 v3.19.0 h1:F/xyOi3x1UnG1U27YVnM1N6bHiL1K2upi6U/0qr8
 github.com/coreos/go-oidc/v3 v3.19.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26KVTCI9SrY4=
 github.com/coreos/go-oidc/v3 v3.20.0 h1:EtE0WIBHk03N+DqGkY4+UONzzZHk7amKt6IyNd7OsZE=
 github.com/coreos/go-oidc/v3 v3.20.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26KVTCI9SrY4=
+github.com/coreos/go-oidc/v3 v3.21.0 h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=
+github.com/coreos/go-oidc/v3 v3.21.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26KVTCI9SrY4=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

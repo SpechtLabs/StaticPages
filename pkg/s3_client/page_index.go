@@ -19,6 +19,7 @@ type PageIndexData struct {
 	repository  string
 }
 
+// NewPageCommitMetadata records a commit published from the repository.
 func NewPageCommitMetadata(repository, sha, branch, environment string, date time.Time) *PageIndexData {
 	return &PageIndexData{
 		repository:  repository,
@@ -29,10 +30,12 @@ func NewPageCommitMetadata(repository, sha, branch, environment string, date tim
 	}
 }
 
+// Repository returns the repository the commit was published from.
 func (m *PageIndexData) Repository() string {
 	return m.repository
 }
 
+// SHA returns the commit's SHA.
 func (m *PageIndexData) SHA() string {
 	return m.sha
 }
@@ -41,7 +44,8 @@ func (m *PageIndexData) SHA() string {
 func (c PageIndex) GetBySHA(sha string) (*PageIndexData, humane.Error) {
 	entry, exists := c[sha]
 	if !exists {
-		return nil, humane.New("metadata not found in index")
+		return nil, humane.New("metadata not found in index",
+			"Make sure the commit was uploaded to this page; the index only lists uploaded commits.")
 	}
 
 	return entry, nil
@@ -53,16 +57,15 @@ func (c PageIndex) GetLatestForBranch(branch string) (string, *PageIndexData, hu
 	var latestData *PageIndexData
 
 	for sha, entry := range c {
-		if entry.Branch == branch {
-			if latestData == nil || entry.Date.After(latestData.Date) {
-				latestSHA = sha
-				latestData = entry
-			}
+		if entry.Branch == branch && (latestData == nil || entry.Date.After(latestData.Date)) {
+			latestSHA = sha
+			latestData = entry
 		}
 	}
 
 	if latestData == nil {
-		return "", nil, humane.New("branch not found in index")
+		return "", nil, humane.New("branch not found in index",
+			"Make sure a commit on this branch was uploaded to this page.")
 	}
 
 	return latestSHA, latestData, nil

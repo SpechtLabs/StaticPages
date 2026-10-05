@@ -17,38 +17,48 @@ var (
 	configuration  config.StaticPagesConfig
 )
 
-func init() {
+// NewRootCmd builds the staticpages command tree: the persistent flags, bound
+// to viper, the configuration defaults, and the serve command.
+func NewRootCmd() (*cobra.Command, humane.Error) {
+	rootCmd := &cobra.Command{
+		Use:   "staticpages",
+		Short: "A simple Static Pages Server for hosting your own static pages.",
+		// Render errors ourselves (as humane, advice-rich messages) in main rather
+		// than letting cobra print a terse "Error:" line and a usage dump.
+		SilenceErrors:     true,
+		SilenceUsage:      true,
+		PersistentPreRunE: loadConfig,
+	}
+
 	cobra.OnInitialize(initConfig)
+	config.SetDefaults(viper.GetViper())
 
-	RootCmd.PersistentFlags().StringVarP(&configFileName, "config", "c", "", "Name of the config file")
+	flags := rootCmd.PersistentFlags()
+	flags.StringVarP(&configFileName, "config", "c", "", "Name of the config file")
+	flags.IntP("port", "p", 50051, "Port of the Server")
+	flags.StringP("server", "s", "", "")
+	flags.BoolP("debug", "d", false, "enable debug logging")
+	flags.StringP("out", "o", string(config.ShortFormat), "Configure your output format (short, long)")
 
-	RootCmd.PersistentFlags().IntP("port", "p", 50051, "Port of the Server")
+	// server.host and output.format have their defaults in config.SetDefaults.
 	viper.SetDefault("server.port", 8099)
-	err := viper.BindPFlag("server.port", RootCmd.PersistentFlags().Lookup("port"))
-	if err != nil {
-		panic(fmt.Errorf("fatal binding flag: %w", err))
-	}
-
-	RootCmd.PersistentFlags().StringP("server", "s", "", "")
-	viper.SetDefault("server.host", "")
-	err = viper.BindPFlag("server.host", RootCmd.PersistentFlags().Lookup("server"))
-	if err != nil {
-		panic(fmt.Errorf("fatal binding flag: %w", err))
-	}
-
-	RootCmd.PersistentFlags().BoolP("debug", "d", false, "enable debug logging")
 	viper.SetDefault("output.debug", false)
-	err = viper.BindPFlag("output.debug", RootCmd.PersistentFlags().Lookup("debug"))
-	if err != nil {
-		panic(fmt.Errorf("fatal binding flag: %w", err))
+
+	for key, flag := range map[string]string{
+		"server.port":   "port",
+		"server.host":   "server",
+		"output.debug":  "debug",
+		"output.format": "out",
+	} {
+		if err := viper.BindPFlag(key, flags.Lookup(flag)); err != nil {
+			return nil, humane.Wrap(err, fmt.Sprintf("Unable to bind the --%s flag to %s", flag, key),
+				"This is a bug in staticpages; please report it.")
+		}
 	}
 
-	RootCmd.PersistentFlags().StringP("out", "o", string(config.ShortFormat), "Configure your output format (short, long)")
-	viper.SetDefault("output.format", "short")
-	err = viper.BindPFlag("output.format", RootCmd.PersistentFlags().Lookup("out"))
-	if err != nil {
-		panic(fmt.Errorf("fatal binding flag: %w", err))
-	}
+	rootCmd.AddCommand(newServeCmd())
+
+	return rootCmd, nil
 }
 
 func initConfig() {
@@ -70,13 +80,10 @@ func initConfig() {
 	viper.AutomaticEnv()
 }
 
-func readConfig() {
-	// Find and read the config file
+// readConfig reads the configuration file into configuration.
+func readConfig() humane.Error {
 	if err := viper.ReadInConfig(); err != nil {
-		// Handle errors reading the config file
-		herr := humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
-		fmt.Printf("Unable to read config file, assuming default values: %s\n", herr.Display())
-		os.Exit(1)
+		return humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
 	}
 
 	// Expand the optional top-level pageDefaults block into each page before
@@ -84,31 +91,24 @@ func readConfig() {
 	config.ApplyPageDefaults(viper.GetViper())
 
 	if err := viper.Unmarshal(&configuration); err != nil {
-		herr := humane.Wrap(err, "Unable to parse config file", "Make sure the config file exists, is readable, and conforms to the format.")
-		fmt.Printf("Unable to read config file, assuming default values: %s\n", herr.Display())
-		os.Exit(1)
+		return humane.Wrap(err, "Unable to parse config file", "Make sure the config file conforms to the format.")
 	}
+
+	return nil
 }
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "staticpages",
-	Short: "A simple Static Pages Server for hosting your own static pages.",
-	// Render errors ourselves (as humane, advice-rich messages) in main rather
-	// than letting cobra print a terse "Error:" line and a usage dump.
-	SilenceErrors: true,
-	SilenceUsage:  true,
-	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		readConfig()
+func loadConfig(_ *cobra.Command, _ []string) error {
+	if herr := readConfig(); herr != nil {
+		return herr
+	}
 
-		if otelzap.L().Core().Enabled(zap.DebugLevel) {
-			file, err := os.ReadFile(viper.GetViper().ConfigFileUsed())
-			if err != nil {
-				return humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
-			}
-			otelzap.L().Debug("Config file used", zap.String("config_file", string(file)))
+	if otelzap.L().Core().Enabled(zap.DebugLevel) {
+		file, err := os.ReadFile(viper.GetViper().ConfigFileUsed())
+		if err != nil {
+			return humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
 		}
+		otelzap.L().Debug("Config file used", zap.String("config_file", string(file)))
+	}
 
-		return nil
-	},
+	return nil
 }

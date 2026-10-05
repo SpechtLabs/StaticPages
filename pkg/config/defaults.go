@@ -1,6 +1,8 @@
 package config
 
 import (
+	"maps"
+
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 )
@@ -16,7 +18,7 @@ import (
 // with a zero value (e.g. `preview.enabled: false`) still overrides a non-zero
 // default — something a struct-level merge could not distinguish from "unset".
 //
-// It is a no-op when `pageDefaults` is absent, leaving behaviour unchanged.
+// It is a no-op when `pageDefaults` is absent, leaving behavior unchanged.
 func ApplyPageDefaults(v *viper.Viper) {
 	defaults := v.GetStringMap("pageDefaults")
 	if len(defaults) == 0 {
@@ -46,23 +48,25 @@ func mergePageDefaults(defaults map[string]any, pages []any) []any {
 // base is never mutated.
 func deepMergeMaps(base, override map[string]any) map[string]any {
 	out := make(map[string]any, len(base))
-	for k, v := range base {
-		out[k] = v
-	}
+	maps.Copy(out, base)
 
 	for k, ov := range override {
-		if bv, ok := out[k]; ok {
-			if bm, bok := asStringMap(bv); bok {
-				if om, ook := asStringMap(ov); ook {
-					out[k] = deepMergeMaps(bm, om)
-					continue
-				}
-			}
-		}
-		out[k] = ov
+		out[k] = mergeValue(out[k], ov)
 	}
 
 	return out
+}
+
+// mergeValue merges override over base when both are maps, and otherwise
+// returns override.
+func mergeValue(base, override any) any {
+	bm, bok := asStringMap(base)
+	om, ook := asStringMap(override)
+	if !bok || !ook {
+		return override
+	}
+
+	return deepMergeMaps(bm, om)
 }
 
 // asStringMap reports whether v is a YAML mapping and, if so, returns it as a

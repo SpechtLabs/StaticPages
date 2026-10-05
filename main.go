@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -14,25 +15,26 @@ import (
 	"go.uber.org/zap"
 )
 
+// Build information, set by GoReleaser through -ldflags.
 var (
-	Version    string
-	Commit     string
-	Date       string
-	BuiltBy    string
-	versionCmd = &cobra.Command{
-		Use:   "version",
-		Short: "Shows version information",
-		Args:  cobra.ExactArgs(0),
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Version: %s\n", Version)
-			fmt.Printf("Date:    %s\n", Date)
-			fmt.Printf("Commit:  %s\n", Commit)
-			fmt.Printf("BuiltBy: %s\n", BuiltBy)
-		},
-	}
+	// Version is the release version.
+	Version string
+	// Commit is the commit the binary was built from.
+	Commit string
+	// Date is the commit's timestamp.
+	Date string
+	// BuiltBy names what built the binary.
+	BuiltBy string
 )
 
 func main() {
+	os.Exit(run(os.Args[1:]))
+}
+
+// run sets up tracing and logging, runs the command line with args, and
+// returns the process exit code. Keeping it apart from main lets the deferred
+// cleanup run before the process exits.
+func run(args []string) int {
 	traceProvider := otelprovider.NewTracer(
 		otelprovider.WithTraceAutomaticEnv(),
 	)
@@ -50,7 +52,7 @@ func main() {
 	}
 	if err != nil {
 		fmt.Printf("failed to initialize logger: %v", err)
-		os.Exit(1)
+		return 1
 	}
 
 	// Replace zap global
@@ -75,12 +77,12 @@ func main() {
 	undoOtelZapGlobals := otelzap.ReplaceGlobals(otelZapLogger)
 
 	defer func() {
-		if err := traceProvider.ForceFlush(context.Background()); err != nil {
-			otelzap.L().Warn("failed to flush traces")
+		if flushErr := traceProvider.ForceFlush(context.Background()); flushErr != nil {
+			otelzap.L().Warn("failed to flush traces", zap.Error(flushErr))
 		}
 
-		if err := traceProvider.Shutdown(context.Background()); err != nil {
-			panic(err)
+		if shutdownErr := traceProvider.Shutdown(context.Background()); shutdownErr != nil {
+			panic(shutdownErr)
 		}
 
 		undoStdLogRedirect()
@@ -88,16 +90,38 @@ func main() {
 		undoZapGlobals()
 	}()
 
-	cmd.RootCmd.AddCommand(versionCmd)
-	err = cmd.RootCmd.Execute()
-	if err != nil {
+	rootCmd, herr := cmd.NewRootCmd()
+	if herr != nil {
+		fmt.Println(herr.Display())
+		return 1
+	}
+
+	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.SetArgs(args)
+	if err := rootCmd.Execute(); err != nil {
 		// Render humane errors with their advice; fall back to a plain message
 		// for everything else. Either way: a clean message, never a panic.
-		if herr, ok := err.(humane.Error); ok {
+		if herr, ok := errors.AsType[humane.Error](err); ok {
 			fmt.Println(herr.Display())
 		} else {
 			fmt.Println(err)
 		}
-		os.Exit(1)
+		return 1
+	}
+
+	return 0
+}
+
+func newVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Shows version information",
+		Args:  cobra.ExactArgs(0),
+		Run: func(_ *cobra.Command, _ []string) {
+			fmt.Printf("Version: %s\n", Version)
+			fmt.Printf("Date:    %s\n", Date)
+			fmt.Printf("Commit:  %s\n", Commit)
+			fmt.Printf("BuiltBy: %s\n", BuiltBy)
+		},
 	}
 }

@@ -46,13 +46,13 @@ func initLogger() *bytes.Buffer {
 func TestProbePathDoesNotFollowRedirects(t *testing.T) {
 	initLogger()
 
-	var redirectTargetHits int32
+	var redirectTargetHits atomic.Int32
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/source":
 			http.Redirect(w, r, "/target", http.StatusFound)
 		case "/target":
-			atomic.AddInt32(&redirectTargetHits, 1)
+			redirectTargetHits.Add(1)
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -67,7 +67,7 @@ func TestProbePathDoesNotFollowRedirects(t *testing.T) {
 	code, probeErr := p.probePath(context.Background(), backendURL, "/source")
 	assert.NoError(t, probeErr)
 	assert.Equal(t, http.StatusFound, code, "probe should surface the redirect, not follow it")
-	assert.Equal(t, int32(0), atomic.LoadInt32(&redirectTargetHits), "probe must not have followed the redirect")
+	assert.Equal(t, int32(0), redirectTargetHits.Load(), "probe must not have followed the redirect")
 }
 
 // Two requests for the same URL that overlap (e.g. a prefetch racing the real
@@ -77,12 +77,12 @@ func TestProxyConcurrentSamePathBothResolve(t *testing.T) {
 	initLogger()
 
 	const commit = mockCommit
-	var headHits int32
+	var headHits atomic.Int32
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqPath, _ := strings.CutPrefix(r.URL.Path, "/"+commit)
 		if reqPath == "/page.html" {
 			if r.Method == http.MethodHead {
-				atomic.AddInt32(&headHits, 1)
+				headHits.Add(1)
 				// Hold the winning probe open so a second request overlaps it.
 				time.Sleep(200 * time.Millisecond)
 				w.WriteHeader(http.StatusOK)
@@ -96,8 +96,7 @@ func TestProxyConcurrentSamePathBothResolve(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	test := testProxyServer{domain: "example.com"}
-	s3Backend := setupMockS3(&test)
+	s3Backend := setupMockS3()
 	defer s3Backend.Close()
 
 	proxy := NewProxy(config.StaticPagesConfig{
@@ -118,20 +117,18 @@ func TestProxyConcurrentSamePathBothResolve(t *testing.T) {
 	var wg sync.WaitGroup
 	codes := make([]int, n)
 	bodies := make([]string, n)
-	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
+	for i := range n {
+		wg.Go(func() {
 			req := httptest.NewRequest(http.MethodGet, "http://example.com/page", nil)
 			rr := httptest.NewRecorder()
 			proxy.ServeHTTP(rr, req)
 			codes[i] = rr.Code
 			bodies[i] = rr.Body.String()
-		}(i)
+		})
 	}
 	wg.Wait()
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		assert.Equal(t, http.StatusOK, codes[i], "request %d should resolve the page", i)
 		assert.Equal(t, "Hello from backend", bodies[i], "request %d body", i)
 	}
@@ -160,8 +157,7 @@ func TestProxyStripsSpeculationRulesHeader(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	test := testProxyServer{domain: "example.com"}
-	s3Backend := setupMockS3(&test)
+	s3Backend := setupMockS3()
 	defer s3Backend.Close()
 
 	proxy := NewProxy(config.StaticPagesConfig{
@@ -230,8 +226,7 @@ func TestProxyRewritesOutgoingRequest(t *testing.T) {
 			}))
 			defer backend.Close()
 
-			test := testProxyServer{domain: "example.com"}
-			s3Backend := setupMockS3(&test)
+			s3Backend := setupMockS3()
 			defer s3Backend.Close()
 
 			proxy := NewProxy(config.StaticPagesConfig{
@@ -542,7 +537,7 @@ func TestProxyServeHTTP(t *testing.T) {
 			backend := setupMockServer(&test)
 			defer backend.Close()
 
-			s3Backend := setupMockS3(&test)
+			s3Backend := setupMockS3()
 			defer s3Backend.Close()
 
 			conf := config.StaticPagesConfig{
@@ -644,8 +639,7 @@ func setupMockServer(test *testProxyServer) *httptest.Server {
 	}))
 }
 
-func setupMockS3(test *testProxyServer) *httptest.Server {
-
+func setupMockS3() *httptest.Server {
 	testIndex := fmt.Sprintf(`%s:
     environment: main
     branch: ""
@@ -681,7 +675,7 @@ func writeAndOpenTempFile(content string) (io.Reader, int64, error) {
 	}
 	defer func() { _ = tmpFile.Close() }()
 
-	if _, err := tmpFile.WriteString(content); err != nil {
+	if _, err = tmpFile.WriteString(content); err != nil {
 		return nil, 0, err
 	}
 

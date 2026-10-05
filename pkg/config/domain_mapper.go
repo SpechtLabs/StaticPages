@@ -9,25 +9,32 @@ import (
 // that provides methods for longest-prefix matching.
 type DomainMapper map[DomainScope]*Page
 
+// NewDomainMapperFromPages indexes the pages by their domain.
 func NewDomainMapperFromPages(pages []*Page) DomainMapper {
-	// construct a map for easier lookup in the director
+	// construct a map for easier lookup in the proxy
 	pagesMap := make(DomainMapper)
+	var duplicates, nested []string
 	for _, page := range pages {
 		if pagesMap[page.Domain] != nil {
-			otelzap.L().Warn("duplicate page domain", zap.String("domain", page.Domain.String()))
+			duplicates = append(duplicates, page.Domain.String())
 		}
 
+		// Nested domains are expected (e.g. an apex page plus its
+		// subdomains); longest-prefix matching routes each to the most
+		// specific page. They are logged at debug for routing diagnostics only.
 		if p := pagesMap.Lookup(page.Domain.String()); p != nil {
-			// Nested domains are expected (e.g. an apex page plus its
-			// subdomains); longest-prefix matching routes each to the most
-			// specific page. Log at debug for routing diagnostics only.
-			otelzap.L().Debug("nested page domain; longest-prefix match will route it",
-				zap.String("domain", page.Domain.String()),
-				zap.String("parent_domain", p.Domain.String()),
-			)
+			nested = append(nested, page.Domain.String()+" under "+p.Domain.String())
 		}
 
 		pagesMap[page.Domain] = page
+	}
+
+	if len(duplicates) > 0 {
+		otelzap.L().Warn("duplicate page domains; the last page configured for each wins", zap.Strings("domains", duplicates))
+	}
+
+	if len(nested) > 0 {
+		otelzap.L().Debug("nested page domains; longest-prefix match will route them", zap.Strings("domains", nested))
 	}
 
 	return pagesMap

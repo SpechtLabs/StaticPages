@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -27,16 +26,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// readHeaderTimeout bounds how long a client may take to send its request
+// headers, so slow clients can't hold connections open (Slowloris).
+const readHeaderTimeout = 10 * time.Second
+
 // Proxy represents a reverse proxy server with logging, page management, and request handling capabilities.
 type Proxy struct {
-	pagesMap config.DomainMapper
-	conf     config.StaticPagesConfig
-	proxy    *httputil.ReverseProxy
-	server   *http.Server
-	tracer   trace.Tracer
-
-	originCache sync.Map      // Cache of hostname -> resolved IP (thread-safe map)
+	tracer      trace.Tracer
+	pagesMap    config.DomainMapper
+	proxy       *httputil.ReverseProxy
+	server      *http.Server
 	dnsResolver *net.Resolver // Custom DNS resolver using external DNS servers
+	originCache sync.Map      // Cache of hostname -> resolved IP (thread-safe map)
+	conf        config.StaticPagesConfig
 }
 
 // NewProxy initializes and returns a new Proxy instance configured with the provided logger and page definitions.
@@ -152,12 +154,14 @@ func (p *Proxy) resolveOriginIP(ctx context.Context, hostname string) (string, e
 	ips, err := p.dnsResolver.LookupIP(ctx, "ip4", hostname)
 	if err != nil {
 		span.SetStatus(codes.Error, "DNS resolution failed")
-		return "", fmt.Errorf("failed to resolve %s: %w", hostname, err)
+		return "", humane.Wrap(err, fmt.Sprintf("failed to resolve %s", hostname),
+			"Make sure the backend host exists and public DNS (8.8.8.8, 1.1.1.1) is reachable.")
 	}
 
 	if len(ips) == 0 {
 		span.SetStatus(codes.Error, "No IPs found")
-		return "", fmt.Errorf("no IPs found for %s", hostname)
+		return "", humane.New(fmt.Sprintf("no IPs found for %s", hostname),
+			"Make sure the backend host has an A record.")
 	}
 
 	// Use the first IP
@@ -247,30 +251,11 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 		return nil, humane.Wrap(err, "unable to parse subdomain", "Make sure the request host belongs to the configured domain.")
 	}
 
-	var resolvedSHA string
-	if !page.Preview.Enabled || sub == "" {
-		sub = page.Git.MainBranch
-
-		sha, _, err := metadata.GetLatestForBranch(sub)
-		if err != nil {
-			return nil, humane.Wrap(err, "could not find a commit to serve page for",
-				"Make sure the page has been published for its main branch.")
-		}
-
-		resolvedSHA = sha
-		lookupPath = path.Join(lookupPath, path.Clean(sha))
-	} else {
-		if sha, _, err := metadata.GetLatestForBranch(sub); err == nil {
-			resolvedSHA = sha
-			lookupPath = path.Join(lookupPath, path.Clean(sha))
-		} else if _, err := metadata.GetBySHA(sub); err == nil {
-			resolvedSHA = sub
-			lookupPath = path.Join(lookupPath, path.Clean(sub))
-		} else {
-			return nil, humane.New("could not find a commit to serve page for",
-				"Make sure the requested branch or commit has been published.")
-		}
+	sub, resolvedSHA, herr := resolveCommit(page, metadata, sub)
+	if herr != nil {
+		return nil, herr
 	}
+	lookupPath = path.Join(lookupPath, path.Clean(resolvedSHA))
 
 	span.SetAttributes(
 		attribute.String("proxy.domain", page.Domain.String()),
@@ -284,17 +269,14 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 		zap.String("sha", resolvedSHA),
 		zap.String("base_lookup_path", lookupPath))
 
-	// When Proxy.Path is empty, we need to handle paths starting with / differently
-	// path.Join treats paths starting with / as absolute and ignores previous components
-	var lookupRequestPath string
-	if page.Proxy.Path.String() == "" {
-		cleanedPath := path.Clean(originalPath)
-		// Strip leading / if present to make it relative
-		cleanedPath = strings.TrimPrefix(cleanedPath, "/")
-		lookupRequestPath = path.Join(lookupPath, cleanedPath)
-	} else {
-		lookupRequestPath = path.Join(lookupPath, path.Clean(originalPath))
-	}
+	return p.resolvePath(ctx, page, requestUrl, backendUrl, lookupPath, originalPath)
+}
+
+// resolvePath finds the requested path, or failing that the page's not-found
+// document, under the commit's lookupPath on the backend.
+func (p *Proxy) resolvePath(ctx context.Context, page *config.Page, requestUrl string, backendUrl *url.URL, lookupPath, originalPath string) (*resolvedTarget, humane.Error) {
+	span := trace.SpanFromContext(ctx)
+	lookupRequestPath := joinPagePath(page, lookupPath, originalPath)
 
 	otelzap.L().Ctx(ctx).Debug("constructed lookup path",
 		zap.String("original_path", originalPath),
@@ -314,23 +296,13 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 	}
 
 	// Requested path not found — fall back to the page's configured 404 document.
+	lookup404Path := joinPagePath(page, lookupPath, page.Proxy.NotFound)
+
 	otelzap.L().Ctx(ctx).Warn("original path not found, attempting 404 fallback",
 		zap.String("request_path", originalPath),
-		zap.String("lookup_path", lookupRequestPath))
-
-	var lookup404Path string
-	if page.Proxy.Path.String() == "" {
-		cleanedNotFound := path.Clean(page.Proxy.NotFound)
-		cleanedNotFound = strings.TrimPrefix(cleanedNotFound, "/")
-		lookup404Path = path.Join(lookupPath, cleanedNotFound)
-	} else {
-		lookup404Path = path.Join(lookupPath, path.Clean(page.Proxy.NotFound))
-	}
-
-	otelzap.L().Ctx(ctx).Debug("trying 404 page",
+		zap.String("lookup_path", lookupRequestPath),
 		zap.String("not_found_page", page.Proxy.NotFound),
 		zap.String("lookup_404_path", lookup404Path))
-
 	targetPath, err404 := p.lookupPath(ctx, page, requestUrl, backendUrl, lookup404Path)
 	if err404 != nil {
 		return nil, humane.New("no path found and 404 page not available",
@@ -347,6 +319,42 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 	return &resolvedTarget{backendURL: backendUrl, path: targetPath, isNotFound: true}, nil
 }
 
+// resolveCommit picks the commit to serve. Without previews, or without a
+// subdomain, that's the latest commit on the page's main branch; otherwise the
+// subdomain names a branch, whose latest commit it is, or a commit SHA. It
+// returns the branch or SHA it looked up and the commit.
+func resolveCommit(page *config.Page, metadata s3_client.PageIndex, sub string) (string, string, humane.Error) {
+	if !page.Preview.Enabled || sub == "" {
+		sha, _, err := metadata.GetLatestForBranch(page.Git.MainBranch)
+		if err != nil {
+			return "", "", humane.Wrap(err, "could not find a commit to serve page for",
+				"Make sure the page has been published for its main branch.")
+		}
+		return page.Git.MainBranch, sha, nil
+	}
+
+	if sha, _, err := metadata.GetLatestForBranch(sub); err == nil {
+		return sub, sha, nil
+	}
+
+	if _, err := metadata.GetBySHA(sub); err == nil {
+		return sub, sub, nil
+	}
+
+	return "", "", humane.New("could not find a commit to serve page for",
+		"Make sure the requested branch or commit has been published.")
+}
+
+// joinPagePath joins the request or not-found path p onto base. Without a
+// proxy.path the joined path stays relative, so p's leading / is dropped.
+func joinPagePath(page *config.Page, base, p string) string {
+	if page.Proxy.Path.String() == "" {
+		return path.Join(base, strings.TrimPrefix(path.Clean(p), "/"))
+	}
+
+	return path.Join(base, path.Clean(p))
+}
+
 // Rewrite applies the target resolved by resolveTarget to the outgoing
 // request. ServeHTTP only proxies requests it has already resolved, so the
 // target is always present in the request context.
@@ -360,7 +368,7 @@ func (p *Proxy) Rewrite(pr *httputil.ProxyRequest) {
 
 	target, ok := ctx.Value(ctxResolvedTarget{}).(*resolvedTarget)
 	if !ok || target == nil {
-		otelzap.L().Ctx(ctx).Error("rewrite invoked without a resolved target")
+		otelzap.L().Ctx(ctx).Error("rewrite invoked without a resolved target", zap.String("host", pr.In.Host))
 		return
 	}
 
@@ -410,9 +418,8 @@ func (p *Proxy) ErrorHandler(w http.ResponseWriter, req *http.Request, err error
 
 	responseCode := http.StatusBadGateway
 
-	switch err.Error() {
-	case "context canceled":
-		responseCode = api.StatusRequestContextCanceled // Nginx non-standard code for when a s3_client closes the connection
+	if errors.Is(err, context.Canceled) {
+		responseCode = api.StatusRequestContextCanceled // Nginx non-standard code for when the client closes the connection
 	}
 
 	otelzap.L().WithError(err).Ctx(ctx).Error("proxy error",
@@ -439,7 +446,8 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 	// 404s and drives prefetching that races real navigation.
 	r.Header.Del("Speculation-Rules")
 
-	if r.StatusCode >= 400 {
+	switch {
+	case r.StatusCode >= 400:
 		// Client/Server error responses
 		if otelzap.L().Core().Enabled(zap.DebugLevel) {
 			dump, _ := httputil.DumpResponse(r, true)
@@ -459,14 +467,14 @@ func (p *Proxy) ModifyResponse(r *http.Response) error {
 				zap.String("content_type", r.Header.Get("Content-Type")),
 				zap.Int64("content_length", r.ContentLength))
 		}
-	} else if r.StatusCode >= 300 {
+	case r.StatusCode >= 300:
 		// Redirect responses
 		otelzap.L().Ctx(ctx).Debug("received redirect response",
 			zap.Int("status_code", r.StatusCode),
 			zap.String("status", r.Status),
 			zap.String("location", r.Header.Get("Location")),
 			zap.String("request_url", r.Request.URL.String()))
-	} else {
+	default:
 		// Success responses
 		otelzap.L().Ctx(ctx).Debug("received successful response",
 			zap.Int("status_code", r.StatusCode),
@@ -530,36 +538,30 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// ServeAsync starts the reverse proxy server on the specified address and logs the startup message.
-// It runs the server in a separate goroutine and handles failure to start by logging a fatal error.
-// It Panics when the Proxy Server could not start
+// ServeAsync starts the reverse proxy on addr in a goroutine and returns at
+// once; Shutdown stops it. If the proxy fails to start, it logs a fatal error.
 func (p *Proxy) ServeAsync(addr string) {
-	go func() {
-		if err := p.Serve(addr); err != nil {
-			otelzap.L().WithError(err).Fatal("Unable to start proxy")
+	p.server = p.newServer(addr)
+	go func(srv *http.Server) {
+		if err := api.ListenAndServe(srv, "reverse proxy"); err != nil {
+			otelzap.L().WithError(err).Fatal("Unable to start proxy", zap.String("addr", srv.Addr))
 		}
-	}()
+	}(p.server)
 }
 
 // Serve starts the reverse proxy server on the specified address and logs its startup state.
 // It returns a humane.Error if the server fails to start.
 func (p *Proxy) Serve(addr string) humane.Error {
-	otelzap.L().Info("starting reverse proxy", zap.String("addr", addr))
+	p.server = p.newServer(addr)
+	return api.ListenAndServe(p.server, "reverse proxy")
+}
 
-	p.server = &http.Server{
-		Addr:    addr,
-		Handler: p,
+func (p *Proxy) newServer(addr string) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           p,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
-
-	if err := p.server.ListenAndServe(); err != nil {
-		if strings.Contains(err.Error(), http.ErrServerClosed.Error()) {
-			otelzap.L().Info("proxy server stopped", zap.String("addr", addr))
-			return nil
-		}
-		return humane.Wrap(err, "Unable to start proxy", "Make sure the proxy is not already running and try again.")
-	}
-
-	return nil
 }
 
 // Shutdown gracefully stops the proxy server if it is running, releasing any resources and handling in-progress requests.
@@ -572,7 +574,7 @@ func (p *Proxy) Shutdown() humane.Error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
-	otelzap.L().Info("shutting down proxy")
+	otelzap.L().Info("shutting down proxy", zap.String("addr", p.server.Addr))
 	if err := p.server.Shutdown(ctx); err != nil {
 		return humane.Wrap(err, "Unable to shutdown proxy", "Make sure the proxy is running and try again.")
 	}
@@ -594,39 +596,16 @@ func (p *Proxy) probeTimeout() time.Duration {
 	return 2 * time.Second
 }
 
-// isProbeTimeout reports whether a probe error is a timeout (the per-probe
-// client deadline or the overall lookup deadline) rather than a definitive
-// failure such as a refused connection. A probe context that was cancelled
-// because a sibling probe already succeeded is not a timeout.
-func isProbeTimeout(err error) bool {
-	if errors.Is(err, context.Canceled) {
-		return false
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-	var nerr net.Error
-	return errors.As(err, &nerr) && nerr.Timeout()
-}
-
-func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (int, error) {
-	// Start a span for the probePath method
-	ctx, span := p.tracer.Start(ctx, "proxy.probePath", trace.WithAttributes(
-		attribute.String("proxy_host", url.String()),
-		attribute.String("target_path", location),
-	))
-	defer span.End()
-
-	probeTimeout := p.probeTimeout()
-
+// probeClient returns an HTTP client for path probes, with the short probe
+// timeout for fast failure and the same origin DNS bypass as the proxy.
+func (p *Proxy) probeClient(probeTimeout time.Duration) *http.Client {
 	// Create custom dialer for origin IP support
 	dialer := &net.Dialer{
 		Timeout:   probeTimeout,
 		KeepAlive: 30 * time.Second,
 	}
 
-	// create a http s3_client with short timeout for fast failure
-	client := &http.Client{
+	return &http.Client{
 		Timeout: probeTimeout,
 		Transport: &http.Transport{
 			DialContext: p.createDialContext(dialer),
@@ -640,6 +619,33 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 			return http.ErrUseLastResponse
 		},
 	}
+}
+
+// isProbeTimeout reports whether a probe error is a timeout (the per-probe
+// client deadline or the overall lookup deadline) rather than a definitive
+// failure such as a refused connection. A probe context that was canceled
+// because a sibling probe already succeeded is not a timeout.
+func isProbeTimeout(err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var nerr net.Error
+	return errors.As(err, &nerr) && nerr.Timeout()
+}
+
+func (p *Proxy) probePath(ctx context.Context, backendURL *url.URL, location string) (int, humane.Error) {
+	// Start a span for the probePath method
+	ctx, span := p.tracer.Start(ctx, "proxy.probePath", trace.WithAttributes(
+		attribute.String("proxy_host", backendURL.String()),
+		attribute.String("target_path", location),
+	))
+	defer span.End()
+
+	probeTimeout := p.probeTimeout()
+	client := p.probeClient(probeTimeout)
 
 	// Construct URL properly: ensure path starts with / for valid HTTP URL
 	// When Proxy.Path is empty, location might not start with /, so we need to add it
@@ -649,24 +655,24 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 	}
 
 	// Use url.URL methods to properly construct the full URL
-	fullURL := *url
+	fullURL := *backendURL
 	fullURL.Path = pathToUse
 	fullURLString := fullURL.String()
 
 	otelzap.L().Ctx(ctx).Debug("probing path",
 		zap.String("full_url", fullURLString),
-		zap.String("base_url", url.String()),
+		zap.String("base_url", backendURL.String()),
 		zap.String("path", pathToUse),
-		zap.String("hostname", url.Hostname()))
+		zap.String("hostname", backendURL.Hostname()))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, fullURLString, nil)
 	if err != nil {
 		otelzap.L().WithError(err).Ctx(ctx).Error("failed to create request", zap.String("url", fullURLString), zap.String("http.method", http.MethodHead))
-		return http.StatusInternalServerError, err
+		return http.StatusInternalServerError, humane.Wrap(err, "failed to create probe request", "Check the page's proxy.url and proxy.path.")
 	}
 
 	// Ensure Host header is set correctly for virtual hosting (important for CDNs)
-	req.Host = url.Host
+	req.Host = backendURL.Host
 
 	// Inject trace context headers for the backend call
 	req = req.WithContext(ctx)
@@ -679,35 +685,13 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 
 	resp, err := client.Do(req)
 	if err != nil {
-		// A probe that times out tells us nothing about whether the object
-		// exists — the origin was simply too slow to confirm within the probe
-		// budget (e.g. a cold CDN cache miss). Report it as inconclusive so the
-		// caller can still proxy the object rather than treating it as a hard
-		// 404. A definitive negative only comes from an actual HTTP response.
-		if isProbeTimeout(err) {
-			span.SetAttributes(attribute.String("proxy.probe.outcome", "inconclusive"))
-			otelzap.L().Ctx(ctx).Debug("path probe timed out (inconclusive)",
-				zap.String("full_url", fullURLString),
-				zap.Duration("probe_timeout", probeTimeout))
-			return statusProbeInconclusive, err
-		}
-
-		span.SetAttributes(attribute.String("proxy.probe.outcome", "error"))
-		if !errors.Is(err, context.Canceled) {
-			otelzap.L().WithError(err).Ctx(ctx).Warn("failed to probe path",
-				zap.String("proxy_host", url.String()),
-				zap.String("target_path", location),
-				zap.String("full_url", fullURLString),
-			)
-		}
-		return http.StatusNotFound, err
+		return probeFailure(ctx, err, fullURLString, probeTimeout)
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			otelzap.L().WithError(err).Ctx(ctx).Error("failed to close response body")
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			otelzap.L().WithError(err).Ctx(ctx).Error("failed to close response body", zap.String("full_url", fullURLString))
 		}
-	}(resp.Body)
+	}()
 
 	probeOutcome := "hit"
 	if resp.StatusCode >= http.StatusBadRequest {
@@ -717,19 +701,37 @@ func (p *Proxy) probePath(ctx context.Context, url *url.URL, location string) (i
 		attribute.Int("http.status_code", resp.StatusCode),
 		attribute.String("proxy.probe.outcome", probeOutcome),
 	)
-
-	if resp.StatusCode >= 400 {
-		otelzap.L().Ctx(ctx).Debug("path probe returned unsuccessful status",
-			zap.String("full_url", fullURLString),
-			zap.Int("status_code", resp.StatusCode))
-	} else {
-		otelzap.L().Ctx(ctx).Debug("path probe successful",
-			zap.String("full_url", fullURLString),
-			zap.Int("status_code", resp.StatusCode))
-	}
+	otelzap.L().Ctx(ctx).Debug("path probe answered",
+		zap.String("full_url", fullURLString),
+		zap.Int("status_code", resp.StatusCode),
+		zap.String("outcome", probeOutcome))
 
 	span.SetStatus(codes.Ok, "")
 	return resp.StatusCode, nil
+}
+
+// probeFailure classifies a probe that got no HTTP response. A probe that
+// times out tells us nothing about whether the object exists — the origin was
+// simply too slow to confirm within the probe budget (e.g. a cold CDN cache
+// miss). It is reported as inconclusive so the caller can still proxy the
+// object rather than treating it as a hard 404. A definitive negative only
+// comes from an actual HTTP response.
+func probeFailure(ctx context.Context, err error, fullURL string, probeTimeout time.Duration) (int, humane.Error) {
+	span := trace.SpanFromContext(ctx)
+
+	if isProbeTimeout(err) {
+		span.SetAttributes(attribute.String("proxy.probe.outcome", "inconclusive"))
+		otelzap.L().Ctx(ctx).Debug("path probe timed out (inconclusive)",
+			zap.String("full_url", fullURL),
+			zap.Duration("probe_timeout", probeTimeout))
+		return statusProbeInconclusive, humane.Wrap(err, "path probe timed out", "The backend may be slow; the object is proxied unconfirmed.")
+	}
+
+	span.SetAttributes(attribute.String("proxy.probe.outcome", "error"))
+	if !errors.Is(err, context.Canceled) {
+		otelzap.L().WithError(err).Ctx(ctx).Warn("failed to probe path", zap.String("full_url", fullURL))
+	}
+	return http.StatusNotFound, humane.Wrap(err, "failed to probe path", "Make sure the backend is reachable.")
 }
 
 // buildProbePath constructs a candidate backend path for a single search-path
@@ -758,6 +760,10 @@ func buildProbePath(proxyPathEmpty bool, targetPath, lookup string) string {
 	}
 }
 
+// lookupPath probes the requested path and each search-path variant of it at
+// once, and returns the first the origin confirms. Every probe's result fits in
+// the results channel, so none of them blocks; on return the canceled context
+// stops the probes still in flight before it waits for them.
 func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost string, backendURL *url.URL, targetPath string) (string, humane.Error) {
 	ctx, span := p.tracer.Start(ctx, "proxy.lookupPath", trace.WithAttributes(
 		attribute.String("proxy_host", backendURL.String()),
@@ -766,130 +772,56 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 	))
 	defer span.End()
 
-	searchPaths := append([]string{""}, page.Proxy.SearchPath...)
-	foundPath := make(chan string, 1)
+	testedPaths := candidatePaths(page, targetPath)
 
-	timeoutCtx, cancelTimeout := context.WithTimeout(ctx, 5*time.Second)
-	defer cancelTimeout()
-
-	probeCtx, cancelProbes := context.WithCancel(timeoutCtx)
-	defer cancelProbes()
+	otelzap.L().Ctx(ctx).Debug("starting path lookup",
+		zap.String("target_path", targetPath),
+		zap.Strings("search_paths", page.Proxy.SearchPath),
+		zap.String("backend_url", backendURL.String()))
 
 	var wg sync.WaitGroup
-	var testedPaths []string
-	var testedPathsMu sync.Mutex
+	defer wg.Wait()
+
+	probeCtx, cancelProbes := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelProbes()
+
+	results := make(chan probeResult, len(testedPaths))
+	for i, testPath := range testedPaths {
+		wg.Go(func() {
+			// The first candidate is the exact requested path.
+			results <- p.probeCandidate(probeCtx, backendURL, testPath, i == 0)
+		})
+	}
 
 	// inconclusivePrimary holds the exact requested path when its probe could
 	// not be confirmed (origin too slow). It is used as a last resort so a
 	// slow-but-existing object is still proxied rather than 404'd.
 	var inconclusivePrimary string
-	var inconclusiveMu sync.Mutex
 
-	otelzap.L().Ctx(ctx).Debug("starting path lookup",
-		zap.String("target_path", targetPath),
-		zap.Strings("search_paths", searchPaths),
-		zap.String("backend_url", backendURL.String()))
-
-	for _, lookup := range searchPaths {
-		wg.Add(1)
-
-		go func(lookup string) {
-			defer wg.Done()
-
-			testPath := buildProbePath(page.Proxy.Path.String() == "", targetPath, lookup)
-
-			// Track what we're testing
-			testedPathsMu.Lock()
-			testedPaths = append(testedPaths, testPath)
-			testedPathsMu.Unlock()
-
-			statusCode, err := p.probePath(probeCtx, backendURL, testPath)
-
-			// Ensure any path we hand back has a leading / for a valid HTTP URL.
-			pathToReturn := testPath
-			if !strings.HasPrefix(pathToReturn, "/") {
-				pathToReturn = "/" + pathToReturn
-			}
-
+	timedOut := false
+probes:
+	for range len(testedPaths) {
+		select {
+		case result := <-results:
 			switch {
-			case statusCode >= http.StatusOK && statusCode < http.StatusBadRequest:
-				// Definitive success: the origin confirmed this path exists.
-				otelzap.L().Ctx(ctx).Debug("found valid path",
-					zap.String("test_path", testPath),
-					zap.String("path_to_return", pathToReturn),
-					zap.Int("status_code", statusCode))
+			case result.statusCode >= http.StatusOK && result.statusCode < http.StatusBadRequest:
+				span.SetAttributes(
+					attribute.String("proxy.lookup.outcome", "found"),
+					attribute.String("proxy.lookup.resolved_path", result.path),
+				)
+				return result.path, nil
 
-				select {
-				case foundPath <- pathToReturn:
-				case <-probeCtx.Done():
-				}
-
-			case statusCode == statusProbeInconclusive && lookup == "":
-				// The exact requested object could not be confirmed (origin
-				// too slow). Remember it so it can still be proxied if no
-				// other path resolves, instead of 404'ing a file that may
-				// well exist.
-				inconclusiveMu.Lock()
-				if inconclusivePrimary == "" {
-					inconclusivePrimary = pathToReturn
-				}
-				inconclusiveMu.Unlock()
-
-			case err != nil:
-				// Definitive probe failure (e.g. connection refused). This
-				// path does not resolve; nothing to record.
-				otelzap.L().Ctx(ctx).Debug("probe did not resolve",
-					zap.String("test_path", testPath))
+			case result.statusCode == statusProbeInconclusive && result.primary:
+				inconclusivePrimary = result.path
 			}
-		}(lookup)
+
+		case <-probeCtx.Done():
+			timedOut = true
+			break probes
+		}
 	}
 
-	go func() {
-		wg.Wait()
-		close(foundPath)
-	}()
-
-	select {
-	case p, ok := <-foundPath:
-		if ok {
-			cancelProbes()
-			span.SetAttributes(
-				attribute.String("proxy.lookup.outcome", "found"),
-				attribute.String("proxy.lookup.resolved_path", p),
-			)
-			return p, nil
-		}
-
-		// All probes finished without a definitive hit. If the exact requested
-		// object probe was merely inconclusive (origin too slow), proxy it
-		// anyway: the downstream GET uses the longer proxy timeout and will
-		// return the real content — or a real error — instead of us inventing
-		// a 404 for a file that may exist.
-		inconclusiveMu.Lock()
-		primary := inconclusivePrimary
-		inconclusiveMu.Unlock()
-		if primary != "" {
-			span.SetAttributes(
-				attribute.String("proxy.lookup.outcome", "inconclusive_proxied"),
-				attribute.String("proxy.lookup.resolved_path", primary),
-			)
-			otelzap.L().Ctx(ctx).Info("primary path probe inconclusive; proxying object without confirmation",
-				zap.String("target_path", targetPath),
-				zap.String("path_to_return", primary))
-			return primary, nil
-		}
-
-		span.SetAttributes(
-			attribute.String("proxy.lookup.outcome", "not_found"),
-			attribute.StringSlice("proxy.lookup.tested_paths", testedPaths),
-		)
-		otelzap.L().Ctx(ctx).Warn("no valid path found after testing all options",
-			zap.String("target_path", targetPath),
-			zap.Strings("tested_paths", testedPaths),
-			zap.String("backend_url", backendURL.String()))
-
-		return "", humane.New("No valid path found", "Make sure the path exists and is accessible.")
-	case <-probeCtx.Done():
+	if timedOut {
 		span.SetAttributes(
 			attribute.String("proxy.lookup.outcome", "timeout"),
 			attribute.StringSlice("proxy.lookup.tested_paths", testedPaths),
@@ -898,6 +830,90 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 			zap.String("target_path", targetPath),
 			zap.Strings("tested_paths", testedPaths))
 
-		return "", humane.New("Context cancelled", "Make sure the path exists and is accessible.")
+		return "", humane.New("Path lookup timed out", "Make sure the path exists and the backend answers within 5 seconds.")
 	}
+
+	return noPathConfirmed(ctx, targetPath, testedPaths, backendURL, inconclusivePrimary)
+}
+
+// noPathConfirmed settles a lookup whose probes all finished without a
+// definitive hit. If the exact requested object probe was merely inconclusive
+// (origin too slow), it is proxied anyway: the downstream GET uses the longer
+// proxy timeout and will return the real content — or a real error — instead
+// of us inventing a 404 for a file that may exist.
+func noPathConfirmed(ctx context.Context, targetPath string, testedPaths []string, backendURL *url.URL, inconclusivePrimary string) (string, humane.Error) {
+	span := trace.SpanFromContext(ctx)
+
+	if inconclusivePrimary != "" {
+		span.SetAttributes(
+			attribute.String("proxy.lookup.outcome", "inconclusive_proxied"),
+			attribute.String("proxy.lookup.resolved_path", inconclusivePrimary),
+		)
+		otelzap.L().Ctx(ctx).Info("primary path probe inconclusive; proxying object without confirmation",
+			zap.String("target_path", targetPath),
+			zap.String("path_to_return", inconclusivePrimary))
+		return inconclusivePrimary, nil
+	}
+
+	span.SetAttributes(
+		attribute.String("proxy.lookup.outcome", "not_found"),
+		attribute.StringSlice("proxy.lookup.tested_paths", testedPaths),
+	)
+	otelzap.L().Ctx(ctx).Warn("no valid path found after testing all options",
+		zap.String("target_path", targetPath),
+		zap.Strings("tested_paths", testedPaths),
+		zap.String("backend_url", backendURL.String()))
+
+	return "", humane.New("No valid path found", "Make sure the path exists and is accessible.")
+}
+
+// candidatePaths lists the paths lookupPath probes: the requested path first,
+// then one per search-path entry.
+func candidatePaths(page *config.Page, targetPath string) []string {
+	searchPaths := append([]string{""}, page.Proxy.SearchPath...)
+	paths := make([]string, 0, len(searchPaths))
+	for _, lookup := range searchPaths {
+		paths = append(paths, buildProbePath(page.Proxy.Path.String() == "", targetPath, lookup))
+	}
+
+	return paths
+}
+
+// probeResult is what the origin said about one candidate path.
+type probeResult struct {
+	// path is the candidate with a leading /, as lookupPath hands it back.
+	path       string
+	statusCode int
+	// primary marks the exact requested path, as opposed to a search-path
+	// variant of it.
+	primary bool
+}
+
+// probeCandidate probes one candidate path for lookupPath.
+func (p *Proxy) probeCandidate(ctx context.Context, backendURL *url.URL, testPath string, primary bool) probeResult {
+	statusCode, err := p.probePath(ctx, backendURL, testPath)
+
+	// Ensure any path we hand back has a leading / for a valid HTTP URL.
+	pathToReturn := testPath
+	if !strings.HasPrefix(pathToReturn, "/") {
+		pathToReturn = "/" + pathToReturn
+	}
+
+	switch {
+	case statusCode >= http.StatusOK && statusCode < http.StatusBadRequest:
+		// Definitive success: the origin confirmed this path exists.
+		otelzap.L().Ctx(ctx).Debug("found valid path",
+			zap.String("test_path", testPath),
+			zap.String("path_to_return", pathToReturn),
+			zap.Int("status_code", statusCode))
+
+	case err != nil:
+		// A timeout, or a definitive probe failure (e.g. connection
+		// refused). lookupPath only falls back on a timed-out primary path.
+		otelzap.L().Ctx(ctx).Debug("probe did not resolve",
+			zap.String("test_path", testPath),
+			zap.Int("status_code", statusCode))
+	}
+
+	return probeResult{path: pathToReturn, statusCode: statusCode, primary: primary}
 }

@@ -123,7 +123,7 @@ func BenchmarkPageIndex_GetLatestForBranch(b *testing.B) {
 	start := time.Now()
 
 	// Generate 100,000 entries with mixed branches
-	for i := 0; i < 100000; i++ {
+	for i := range 100000 {
 		sha := "sha" + time.Now().Add(time.Duration(i)*time.Second).Format("150405")
 		entryBranch := branch
 		if i%2 == 0 {

@@ -20,15 +20,23 @@ import (
 )
 
 const (
+	// StatusRequestContextCanceled is the status the API answers with when the
+	// client went away before the request was handled (nginx's 499).
 	StatusRequestContextCanceled = 499
+
+	// readHeaderTimeout bounds how long a client may take to send its request
+	// headers, so slow clients can't hold connections open (Slowloris).
+	readHeaderTimeout = 10 * time.Second
 )
 
 // RestApi represents a RESTful API server encapsulating an HTTP server, router, and static page configuration.
 type RestApi struct {
+	tracer trace.Tracer
 	srv    *http.Server
 	router *gin.Engine
-	conf   config.StaticPagesConfig
-	tracer trace.Tracer
+	// now dates the commits uploads publish.
+	now  func() time.Time
+	conf config.StaticPagesConfig
 }
 
 // NewRestApi initializes and returns a new RestApi instance configured with the provided StaticPagesConfig.
@@ -37,6 +45,7 @@ func NewRestApi(conf config.StaticPagesConfig) *RestApi {
 		srv:    nil,
 		conf:   conf,
 		tracer: otel.Tracer("StaticPages-API"),
+		now:    time.Now,
 	}
 
 	// Setup Gin router
@@ -91,8 +100,9 @@ func (r *RestApi) Serve(addr string) humane.Error {
 
 	// configure the HTTP Server
 	r.srv = &http.Server{
-		Addr:    addr,
-		Handler: r.router,
+		Addr:              addr,
+		Handler:           r.router,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
 	if err := r.srv.ListenAndServe(); err != nil {
@@ -117,7 +127,7 @@ func (r *RestApi) Shutdown() humane.Error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
-	otelzap.L().Info("shutting down proxy")
+	otelzap.L().Info("shutting down API server", zap.String("addr", r.srv.Addr))
 	if err := r.srv.Shutdown(ctx); err != nil {
 		return humane.Wrap(err, "Unable to shutdown api server", "Make sure the api server is running and try again.")
 	}

@@ -27,16 +27,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// S3PageClient reads and writes one page's objects and index in its bucket.
 type S3PageClient struct {
+	tracer       trace.Tracer
 	client       *s3.Client
 	page         *config.Page
-	tracer       trace.Tracer
 	repository   string
-	s3Options    s3.Options
 	s3Endpoint   string
 	s3BucketName string
+	s3Options    s3.Options
 }
 
+// NewS3PageClient returns a client for the page's bucket and repository; the
+// options override either.
 func NewS3PageClient(page *config.Page, options ...S3ClientOption) *S3PageClient {
 	client := &S3PageClient{
 		tracer:       otel.Tracer("StaticPages-S3-Client"),
@@ -67,14 +70,17 @@ func NewS3PageClient(page *config.Page, options ...S3ClientOption) *S3PageClient
 	return client
 }
 
+// S3ClientOption configures an S3PageClient.
 type S3ClientOption func(*S3PageClient)
 
+// WithRepository sets the repository whose objects the client reads and writes.
 func WithRepository(repository string) S3ClientOption {
 	return func(c *S3PageClient) {
 		c.repository = repository
 	}
 }
 
+// WithBucketConf points the client at the bucket.
 func WithBucketConf(bucketConf *config.BucketConfig) S3ClientOption {
 	return func(c *S3PageClient) {
 		c.s3Endpoint = bucketConf.URL.String()
@@ -83,7 +89,7 @@ func WithBucketConf(bucketConf *config.BucketConfig) S3ClientOption {
 			BaseEndpoint:  &c.s3Endpoint,
 			Region:        bucketConf.Region.String(), // required even if arbitrary
 			UsePathStyle:  true,                       // required for Backblaze B2 compatibility
-			UseAccelerate: false,                      // maybe required for BackBlaze B2 compatibility? TODO: test
+			UseAccelerate: false,                      // TODO(cedi): test whether Backblaze B2 needs this
 			Logger:        otelzap.L(),
 			Credentials: aws.NewCredentialsCache(
 				credentials.NewStaticCredentialsProvider(
@@ -95,6 +101,8 @@ func WithBucketConf(bucketConf *config.BucketConfig) S3ClientOption {
 	}
 }
 
+// UploadFolder uploads every file under source to the target prefix in the
+// bucket, ten at a time.
 func (c *S3PageClient) UploadFolder(ctx context.Context, source, target string) humane.Error {
 	ctx, span := c.tracer.Start(ctx, "s3Client.uploadArtifactsToS3")
 	defer span.End()
@@ -108,6 +116,10 @@ func (c *S3PageClient) UploadFolder(ctx context.Context, source, target string) 
 	// Walk through directory recursively to collect all files
 	files := make([]string, 0)
 	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		if !info.IsDir() {
 			files = append(files, path)
 		}
@@ -116,7 +128,8 @@ func (c *S3PageClient) UploadFolder(ctx context.Context, source, target string) 
 	})
 
 	if err != nil {
-		return humane.Wrap(err, "failed to walk upload directory")
+		return humane.Wrap(err, "failed to walk upload directory",
+			"Make sure the uploaded artifacts were extracted completely and are readable.")
 	}
 
 	// Use a worker pool pattern
@@ -151,7 +164,8 @@ func (c *S3PageClient) UploadFolder(ctx context.Context, source, target string) 
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			return humane.Wrap(err, "failed to upload artifacts to S3")
+			return humane.Wrap(err, "failed to upload artifacts to S3",
+				"Make sure the bucket exists and the configured credentials may write to it.")
 		}
 	}
 
@@ -160,18 +174,20 @@ func (c *S3PageClient) UploadFolder(ctx context.Context, source, target string) 
 }
 
 func (c *S3PageClient) uploadFileInFolder(ctx context.Context, source, file, target string) humane.Error {
-	// Open file for reading
-	f, err := os.Open(file)
+	relPath, err := filepath.Rel(source, file)
 	if err != nil {
-		return humane.Wrap(err, "failed to open file for S3 upload")
+		return humane.Wrap(err, "failed to determine relative path for upload",
+			"This is a bug in staticpages; please report it.")
+	}
+
+	// Open file for reading, refusing anything that resolves outside source
+	f, err := os.OpenInRoot(source, relPath)
+	if err != nil {
+		return humane.Wrap(err, "failed to open file for S3 upload",
+			"Make sure the uploaded artifacts are readable.")
 	}
 
 	defer func() { _ = f.Close() }()
-
-	relPath, err := filepath.Rel(source, file)
-	if err != nil {
-		return humane.Wrap(err, "failed to determine relative path for upload")
-	}
 
 	// Construct target path
 	s3Key := filepath.Join(target, relPath)
@@ -181,7 +197,8 @@ func (c *S3PageClient) uploadFileInFolder(ctx context.Context, source, file, tar
 	// Get file size for Content-Length
 	fileInfo, err := f.Stat()
 	if err != nil {
-		return humane.Wrap(err, "failed to get file stats for S3 upload")
+		return humane.Wrap(err, "failed to get file stats for S3 upload",
+			"Make sure the uploaded artifacts are readable.")
 	}
 
 	// Upload the file to S3
@@ -194,7 +211,8 @@ func (c *S3PageClient) uploadFileInFolder(ctx context.Context, source, file, tar
 	})
 
 	if err != nil {
-		return humane.Wrap(err, fmt.Sprintf("failed to upload file %s to S3", file))
+		return humane.Wrap(err, fmt.Sprintf("failed to upload file %s to S3", file),
+			"Make sure the bucket exists and the configured credentials may write to it.")
 	}
 
 	return nil
@@ -239,6 +257,7 @@ func determineContentType(filePath string) string {
 	}
 }
 
+// UploadPageIndex writes the repository's index of published commits.
 func (c *S3PageClient) UploadPageIndex(ctx context.Context, metadata PageIndex) humane.Error {
 	ctx, span := c.tracer.Start(ctx, "s3Client.UploadPageIndex")
 	defer span.End()
@@ -247,7 +266,8 @@ func (c *S3PageClient) UploadPageIndex(ctx context.Context, metadata PageIndex) 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return humane.Wrap(err, "failed to marshal metadata for S3 upload")
+		return humane.Wrap(err, "failed to marshal metadata for S3 upload",
+			"This is a bug in staticpages; please report it.")
 	}
 
 	s3Key := filepath.ToSlash(path.Join(c.repository, "index.yaml"))
@@ -263,13 +283,16 @@ func (c *S3PageClient) UploadPageIndex(ctx context.Context, metadata PageIndex) 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return humane.Wrap(err, "failed to upload metadata to S3")
+		return humane.Wrap(err, "failed to upload metadata to S3",
+			"Make sure the bucket exists and the configured credentials may write to it.")
 	}
 
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
+// DownloadPageIndex reads the repository's index of published commits; a
+// repository that has none yet gets an empty index.
 func (c *S3PageClient) DownloadPageIndex(ctx context.Context) (PageIndex, humane.Error) {
 	ctx, span := c.tracer.Start(ctx, "s3Client.DownloadPageIndex")
 	defer span.End()
@@ -297,7 +320,8 @@ func (c *S3PageClient) DownloadPageIndex(ctx context.Context) (PageIndex, humane
 
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, humane.Wrap(err, "failed to download metadata from S3")
+		return nil, humane.Wrap(err, "failed to download metadata from S3",
+			"Make sure the bucket exists and the configured credentials may read it.")
 	}
 
 	defer func() { _ = resp.Body.Close() }()
@@ -306,14 +330,16 @@ func (c *S3PageClient) DownloadPageIndex(ctx context.Context) (PageIndex, humane
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, humane.Wrap(err, "failed to read metadata from S3 response")
+		return nil, humane.Wrap(err, "failed to read metadata from S3 response",
+			"Check the connection to the storage backend and try again.")
 	}
 
 	err = yaml.Unmarshal(data, &metadata)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, humane.Wrap(err, "failed to unmarshal metadata from S3")
+		return nil, humane.Wrap(err, "failed to unmarshal metadata from S3",
+			"Make sure index.yaml in the bucket is valid YAML written by staticpages.")
 	}
 
 	span.SetAttributes(attribute.Int("page_index.entries", len(metadata)))

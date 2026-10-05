@@ -2,6 +2,7 @@ package s3_client
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/SpechtLabs/StaticPages/pkg/config"
@@ -11,42 +12,18 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	_metadataCache *ttlcache.Cache[config.DomainScope, PageIndex]
-)
+// metadataCache holds each page's index for a minute, so the proxy doesn't
+// download it from the bucket for every request. It's built, and its expiry
+// loop started, on first use.
+var metadataCache = sync.OnceValue(newMetadataCache)
 
-func init() {
-	_metadataCache = ttlcache.New[config.DomainScope, PageIndex](
-		ttlcache.WithTTL[config.DomainScope, PageIndex](1 * time.Minute),
-		// TODO: evaluate if touch on hit might cause problems before disabling
-		// ttlcache.WithDisableTouchOnHit[config.DomainScope, PageIndex](),
-	)
+// GetPageMetadata returns the page's index of published commits, from the
+// cache or, on a miss, from the page's bucket.
+func GetPageMetadata(ctx context.Context, page *config.Page) (PageIndex, humane.Error) {
+	cache := metadataCache()
 
-	// Set up some debug logging
-	_metadataCache.OnInsertion(func(ctx context.Context, item *ttlcache.Item[config.DomainScope, PageIndex]) {
-		otelzap.L().Ctx(ctx).Debug("Page metadata inserted", zap.String("domain", item.Key().String()))
-	})
-
-	_metadataCache.OnEviction(func(ctx context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[config.DomainScope, PageIndex]) {
-		switch reason {
-		case ttlcache.EvictionReasonExpired:
-			otelzap.L().Ctx(ctx).Debug("Page metadata expired", zap.String("domain", item.Key().String()))
-
-		case ttlcache.EvictionReasonDeleted:
-			otelzap.L().Ctx(ctx).Debug("Page metadata deleted", zap.String("domain", item.Key().String()))
-
-		case ttlcache.EvictionReasonCapacityReached:
-			otelzap.L().Ctx(ctx).Warn("Page metadata cache capacity reached", zap.String("domain", item.Key().String()))
-		}
-	})
-
-	// starts automatic expired item deletion
-	go _metadataCache.Start()
-}
-
-func GetPageMetadata(ctx context.Context, page *config.Page) (PageIndex, error) {
 	// Check in memory cache
-	if index := _metadataCache.Get(page.Domain); index != nil {
+	if index := cache.Get(page.Domain); index != nil {
 		return index.Value(), nil
 	}
 
@@ -60,10 +37,43 @@ func GetPageMetadata(ctx context.Context, page *config.Page) (PageIndex, error) 
 		)
 	}
 
-	_metadataCache.Set(page.Domain, metadata, ttlcache.DefaultTTL)
+	cache.Set(page.Domain, metadata, ttlcache.DefaultTTL)
 	return metadata, nil
 }
 
+// InvalidatePageMetadata drops the page's cached index, so the next request
+// reads the one an upload just wrote.
 func InvalidatePageMetadata(page *config.Page) {
-	_metadataCache.Delete(page.Domain)
+	metadataCache().Delete(page.Domain)
+}
+
+func newMetadataCache() *ttlcache.Cache[config.DomainScope, PageIndex] {
+	cache := ttlcache.New[config.DomainScope, PageIndex](
+		ttlcache.WithTTL[config.DomainScope, PageIndex](1 * time.Minute),
+		// TODO(cedi): evaluate if touch on hit might cause problems before disabling
+		// ttlcache.WithDisableTouchOnHit[config.DomainScope, PageIndex](),
+	)
+
+	// Set up some debug logging
+	cache.OnInsertion(func(ctx context.Context, item *ttlcache.Item[config.DomainScope, PageIndex]) {
+		otelzap.L().Ctx(ctx).Debug("Page metadata inserted", zap.String("domain", item.Key().String()))
+	})
+
+	cache.OnEviction(func(ctx context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[config.DomainScope, PageIndex]) {
+		switch reason {
+		case ttlcache.EvictionReasonExpired:
+			otelzap.L().Ctx(ctx).Debug("Page metadata expired", zap.String("domain", item.Key().String()))
+
+		case ttlcache.EvictionReasonDeleted:
+			otelzap.L().Ctx(ctx).Debug("Page metadata deleted", zap.String("domain", item.Key().String()))
+
+		case ttlcache.EvictionReasonCapacityReached:
+			otelzap.L().Ctx(ctx).Warn("Page metadata cache capacity reached", zap.String("domain", item.Key().String()))
+		}
+	})
+
+	// starts automatic expired item deletion, for the life of the process
+	go cache.Start()
+
+	return cache
 }

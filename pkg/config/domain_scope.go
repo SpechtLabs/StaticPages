@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"github.com/sierrasoftworks/humane-errors-go"
 )
 
 // DomainScope is a string that represents a Domain Name.
@@ -35,9 +37,10 @@ func (d DomainScope) Is(domain string) bool {
 // For example, if DomainScope is "example.com" and domain is "foo.bar.example.com",
 // it returns "foo.bar".
 // Returns an error if the given domain is not associated with the DomainScope.
-func (d DomainScope) Subdomain(domain string) (string, error) {
+func (d DomainScope) Subdomain(domain string) (string, humane.Error) {
 	if !d.Is(domain) {
-		return "", fmt.Errorf("%s is not associated with %s", domain, string(d))
+		return "", humane.New(fmt.Sprintf("%s is not associated with %s", domain, string(d)),
+			fmt.Sprintf("Request a host under %s, or configure a page for %s.", string(d), domain))
 	}
 
 	// If domains are exactly the same, there's no subdomain

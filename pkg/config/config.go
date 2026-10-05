@@ -7,37 +7,29 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Format string
-
-func init() {
-	viper.SetDefault("server.proxyPort", 8080)
-	viper.SetDefault("server.apiPort", 8081)
-	viper.SetDefault("server.host", "")
-
-	viper.SetDefault("output.format", ShortFormat)
-
-	viper.SetDefault("proxy.maxIdleConns", 1000)
-	viper.SetDefault("proxy.maxIdleConnsPerHost", 100)
-	viper.SetDefault("proxy.timeout", "90s")
-	viper.SetDefault("proxy.compression", true)
-	viper.SetDefault("proxy.probeTimeout", "2s")
-}
-
 const (
+	// ShortFormat prints compact output.
 	ShortFormat Format = "short"
-	LongFormat  Format = "long"
+	// LongFormat prints verbose output.
+	LongFormat Format = "long"
 )
 
+// Format selects how the CLI renders its output.
+type Format string
+
+// Output configures the CLI's output.
 type Output struct {
 	Format Format
 }
 
+// Server configures the addresses the proxy and the upload API listen on.
 type Server struct {
 	Host      string
 	ProxyPort int
 	ApiPort   int
 }
 
+// Proxy configures the reverse proxy's connections to the storage backends.
 type Proxy struct {
 	MaxIdleConns        int
 	MaxIdleConnsPerHost int
@@ -51,17 +43,37 @@ type Proxy struct {
 	ProbeTimeout time.Duration
 }
 
+// StaticPagesConfig is the whole configuration file: the listeners, the
+// proxy's connection settings, and the pages it serves.
 type StaticPagesConfig struct {
-	Server Server
-	Proxy  Proxy
 	Output Output
 	Pages  []*Page
+	Server Server
+	Proxy  Proxy
 }
 
+// SetDefaults registers the default value of every setting that has one, so
+// a configuration file only needs to name what it changes.
+func SetDefaults(v *viper.Viper) {
+	v.SetDefault("server.proxyPort", 8080)
+	v.SetDefault("server.apiPort", 8081)
+	v.SetDefault("server.host", "")
+
+	v.SetDefault("output.format", ShortFormat)
+
+	v.SetDefault("proxy.maxIdleConns", 1000)
+	v.SetDefault("proxy.maxIdleConnsPerHost", 100)
+	v.SetDefault("proxy.timeout", "90s")
+	v.SetDefault("proxy.compression", true)
+	v.SetDefault("proxy.probeTimeout", "2s")
+}
+
+// ApiBindAddr returns the address the upload API listens on.
 func (s *StaticPagesConfig) ApiBindAddr() string {
 	return fmt.Sprintf("%s:%d", s.Server.Host, s.Server.ApiPort)
 }
 
+// ProxyBindAddr returns the address the reverse proxy listens on.
 func (s *StaticPagesConfig) ProxyBindAddr() string {
 	return fmt.Sprintf("%s:%d", s.Server.Host, s.Server.ProxyPort)
 }

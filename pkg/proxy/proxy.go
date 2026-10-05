@@ -74,7 +74,7 @@ func NewProxy(conf config.StaticPagesConfig) *Proxy {
 	}
 
 	p.proxy = &httputil.ReverseProxy{
-		Director:       p.Director,       // Add a proxy director
+		Rewrite:        p.Rewrite,        // Point the outgoing request at the resolved target
 		ErrorHandler:   p.ErrorHandler,   // Add error handler to log errors
 		ModifyResponse: p.ModifyResponse, // Add response modifier to log response status
 
@@ -181,7 +181,7 @@ func (p *Proxy) resolveOriginIP(ctx context.Context, hostname string) (string, e
 }
 
 // ctxResolvedTarget is the context key under which ServeHTTP stashes the
-// resolved backend target for Director and ModifyResponse to consume.
+// resolved backend target for Rewrite and ModifyResponse to consume.
 type ctxResolvedTarget struct{}
 
 // resolvedTarget is the outcome of mapping an inbound request to a concrete
@@ -347,21 +347,30 @@ func (p *Proxy) resolveTarget(ctx context.Context, req *http.Request) (*resolved
 	return &resolvedTarget{backendURL: backendUrl, path: targetPath, isNotFound: true}, nil
 }
 
-// Director applies the target resolved by resolveTarget to the outgoing
+// Rewrite applies the target resolved by resolveTarget to the outgoing
 // request. ServeHTTP only proxies requests it has already resolved, so the
 // target is always present in the request context.
-func (p *Proxy) Director(req *http.Request) {
-	ctx := req.Context()
+//
+// ReverseProxy strips the inbound X-Forwarded-* headers from the outgoing
+// request before calling Rewrite. Carrying X-Forwarded-For over and calling
+// SetXForwarded appends the client address to the chain, as Director-based
+// proxies did on their own, and sets X-Forwarded-Host to the original host.
+func (p *Proxy) Rewrite(pr *httputil.ProxyRequest) {
+	ctx := pr.In.Context()
 
 	target, ok := ctx.Value(ctxResolvedTarget{}).(*resolvedTarget)
 	if !ok || target == nil {
-		otelzap.L().Ctx(ctx).Error("director invoked without a resolved target")
+		otelzap.L().Ctx(ctx).Error("rewrite invoked without a resolved target")
 		return
 	}
 
 	// Save original host for logging and forwarding headers
-	originalHost := req.Host
+	originalHost := pr.In.Host
 
+	pr.Out.Header["X-Forwarded-For"] = pr.In.Header["X-Forwarded-For"]
+	pr.SetXForwarded()
+
+	req := pr.Out
 	req.URL.Scheme = target.backendURL.Scheme
 	req.URL.Host = target.backendURL.Host
 	req.URL.Path = target.path
@@ -377,7 +386,6 @@ func (p *Proxy) Director(req *http.Request) {
 		req.Header.Set("User-Agent", "StaticPages-Proxy")
 	}
 
-	req.Header.Set("X-Forwarded-Host", originalHost)
 	req.Header.Set("X-Origin-Host", target.backendURL.Host)
 
 	// Inject trace context headers for the backend call

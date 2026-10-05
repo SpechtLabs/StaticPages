@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -184,6 +185,110 @@ func TestProxyStripsSpeculationRulesHeader(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "Hello from backend", rr.Body.String())
 	assert.Empty(t, rr.Header().Get("Speculation-Rules"), "Cloudflare speculation-rules header must not be forwarded")
+}
+
+// The outgoing request must reach the backend's host and object path, carry
+// the client in the X-Forwarded-For chain, and name the host the client asked
+// for in X-Forwarded-Host.
+func TestProxyRewritesOutgoingRequest(t *testing.T) {
+	initLogger()
+
+	tests := []struct {
+		name          string
+		forwardedFor  string
+		userAgent     string
+		wantForwarded string
+		wantUserAgent string
+	}{
+		{
+			name:          "direct client",
+			wantForwarded: "192.0.2.1",
+			wantUserAgent: "StaticPages-Proxy",
+		},
+		{
+			name:          "behind another proxy",
+			forwardedFor:  "198.51.100.7",
+			userAgent:     "curl/8.0",
+			wantForwarded: "198.51.100.7, 192.0.2.1",
+			wantUserAgent: "curl/8.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got *http.Request
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reqPath, _ := strings.CutPrefix(r.URL.Path, "/"+mockCommit)
+				if reqPath != "/page.html" {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				if r.Method == http.MethodGet {
+					got = r.Clone(context.Background())
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer backend.Close()
+
+			test := testProxyServer{domain: "example.com"}
+			s3Backend := setupMockS3(&test)
+			defer s3Backend.Close()
+
+			proxy := NewProxy(config.StaticPagesConfig{
+				Pages: []*config.Page{{
+					Domain: config.FromString("example.com"),
+					Proxy: config.PageProxy{
+						URL:        config.EnvValue(backend.URL),
+						SearchPath: []string{".html"},
+					},
+					Bucket: config.BucketConfig{
+						URL: config.EnvValue(s3Backend.URL), Name: "test",
+						ApplicationID: "test", Secret: "test", Region: "test",
+					},
+				}},
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "http://example.com/page", nil)
+			req.Header.Del("User-Agent")
+			if tt.userAgent != "" {
+				req.Header.Set("User-Agent", tt.userAgent)
+			}
+			if tt.forwardedFor != "" {
+				req.Header.Set("X-Forwarded-For", tt.forwardedFor)
+			}
+			rr := httptest.NewRecorder()
+			proxy.ServeHTTP(rr, req)
+
+			backendURL, err := url.Parse(backend.URL)
+			assert.NoError(t, err)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			if assert.NotNil(t, got, "backend never saw the proxied GET") {
+				assert.Equal(t, backendURL.Host, got.Host)
+				assert.Equal(t, "/"+mockCommit+"/page.html", got.URL.Path)
+				assert.Equal(t, tt.wantForwarded, got.Header.Get("X-Forwarded-For"))
+				assert.Equal(t, "example.com", got.Header.Get("X-Forwarded-Host"))
+				assert.Equal(t, backendURL.Host, got.Header.Get("X-Origin-Host"))
+				assert.Equal(t, tt.wantUserAgent, got.Header.Get("User-Agent"))
+			}
+		})
+	}
+}
+
+// Rewrite leaves a request it has no resolved target for untouched rather
+// than sending it somewhere half-built.
+func TestRewriteWithoutResolvedTarget(t *testing.T) {
+	initLogger()
+
+	proxy := NewProxy(config.StaticPagesConfig{})
+	in := httptest.NewRequest(http.MethodGet, "http://example.com/page", nil)
+	out := in.Clone(context.Background())
+
+	proxy.Rewrite(&httputil.ProxyRequest{In: in, Out: out})
+
+	assert.Equal(t, "example.com", out.Host)
+	assert.Equal(t, "/page", out.URL.Path)
+	assert.Empty(t, out.Header.Get("X-Forwarded-For"))
 }
 
 func TestBuildProbePath(t *testing.T) {

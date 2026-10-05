@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,9 @@ func TestNewRootCmd(t *testing.T) {
 func TestRunServeWithNothingToServe(t *testing.T) {
 	serveApi, serveProxy = false, false
 
-	err := runServe(nil, nil)
+	cmd := newServeCmd()
+	cmd.SetContext(context.Background())
+	err := runServe(cmd, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Nothing to serve")
 }

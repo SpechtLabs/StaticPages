@@ -50,13 +50,19 @@ func TestUploadHandler(t *testing.T) {
 		},
 		Preview: config.PreviewConfig{Enabled: true, CommitSha: true, Branch: true},
 	}
-	api := NewRestApi(config.StaticPagesConfig{Pages: []*config.Page{page}})
+	// A page whose bucket doesn't exist, so storing the upload fails.
+	broken := *page
+	broken.Git.Repository = "spechtlabs/broken"
+	broken.Bucket.Name = "missing"
+	api := NewRestApi(config.StaticPagesConfig{Pages: []*config.Page{page, &broken}})
 
 	tests := []struct {
 		name        string
 		claims      map[string]any
 		files       map[string]string
 		noAuth      bool
+		badForm     bool
+		canceled    bool
 		wantStatus  int
 		wantPreview []string
 		wantObjects map[string]string
@@ -90,6 +96,25 @@ func TestUploadHandler(t *testing.T) {
 			wantStatus: http.StatusForbidden,
 		},
 		{
+			name:       "rejects a malformed form",
+			claims:     map[string]any{"repository": "spechtlabs/site", "sha": "abc123", "ref": "main"},
+			badForm:    true,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "fails when the bucket can't be written",
+			claims:     map[string]any{"repository": "spechtlabs/broken", "sha": "abc123", "ref": "main"},
+			files:      map[string]string{"files[index.html]": "x"},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "gives up on a client that went away",
+			claims:     map[string]any{"repository": "spechtlabs/site", "sha": "abc123", "ref": "main"},
+			files:      map[string]string{"files[index.html]": "x"},
+			canceled:   true,
+			wantStatus: StatusRequestContextCanceled,
+		},
+		{
 			name:       "refuses a request without a token",
 			noAuth:     true,
 			files:      map[string]string{"files[index.html]": "x"},
@@ -102,6 +127,14 @@ func TestUploadHandler(t *testing.T) {
 			body, contentType := multipartBody(t, tt.files)
 			req := httptest.NewRequest(http.MethodPost, "/api/upload", body)
 			req.Header.Set("Content-Type", contentType)
+			if tt.badForm {
+				req.Header.Set("Content-Type", "multipart/form-data; boundary=nope")
+			}
+			if tt.canceled {
+				ctx, cancel := context.WithCancel(req.Context())
+				cancel()
+				req = req.WithContext(ctx)
+			}
 			if !tt.noAuth {
 				req.Header.Set("Authorization", "Bearer "+issuer.token(t, tt.claims))
 			}

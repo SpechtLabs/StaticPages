@@ -28,13 +28,13 @@ var (
 )
 
 func main() {
-	os.Exit(run())
+	os.Exit(run(os.Args[1:]))
 }
 
-// run sets up tracing and logging, runs the command line, and returns the
-// process exit code. Keeping it apart from main lets the deferred cleanup run
-// before the process exits.
-func run() int {
+// run sets up tracing and logging, runs the command line with args, and
+// returns the process exit code. Keeping it apart from main lets the deferred
+// cleanup run before the process exits.
+func run(args []string) int {
 	traceProvider := otelprovider.NewTracer(
 		otelprovider.WithTraceAutomaticEnv(),
 	)
@@ -97,6 +97,7 @@ func run() int {
 	}
 
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.SetArgs(args)
 	if err := rootCmd.Execute(); err != nil {
 		// Render humane errors with their advice; fall back to a plain message
 		// for everything else. Either way: a clean message, never a panic.

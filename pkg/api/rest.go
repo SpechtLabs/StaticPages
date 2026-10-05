@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/SpechtLabs/StaticPages/pkg/config"
@@ -84,37 +84,21 @@ func NewRestApi(conf config.StaticPagesConfig) *RestApi {
 	return r
 }
 
-// ServeAsync starts the REST API server asynchronously on the specified address by calling Serve within a goroutine.
-// If the server fails to start, it logs a fatal error with contextual details including error advice and cause.
+// ServeAsync starts the REST API server on addr in a goroutine and returns at
+// once; Shutdown stops it. If the server fails to start, it logs a fatal error.
 func (r *RestApi) ServeAsync(addr string) {
-	go func() {
-		if err := r.Serve(addr); err != nil {
-			otelzap.L().WithError(err).Fatal("Unable to start proxy")
+	r.srv = r.newServer(addr)
+	go func(srv *http.Server) {
+		if err := ListenAndServe(srv, "API server"); err != nil {
+			otelzap.L().WithError(err).Fatal("Unable to start API server", zap.String("addr", srv.Addr))
 		}
-	}()
+	}(r.srv)
 }
 
 // Serve starts the REST API Server on the specified address and returns a humane.Error if any issue occurs during startup.
 func (r *RestApi) Serve(addr string) humane.Error {
-	otelzap.L().Info("Starting REST API Server", zap.String("address", addr))
-
-	// configure the HTTP Server
-	r.srv = &http.Server{
-		Addr:              addr,
-		Handler:           r.router,
-		ReadHeaderTimeout: readHeaderTimeout,
-	}
-
-	if err := r.srv.ListenAndServe(); err != nil {
-		if strings.Contains(err.Error(), http.ErrServerClosed.Error()) {
-			otelzap.L().Info("API server stopped", zap.String("addr", r.srv.Addr))
-			return nil
-		}
-
-		return humane.Wrap(err, "Unable to start API Server", "Make sure the api server is not already running and try again.")
-	}
-
-	return nil
+	r.srv = r.newServer(addr)
+	return ListenAndServe(r.srv, "API server")
 }
 
 // Shutdown gracefully stops the proxy server if it is running, releasing any resources and handling in-progress requests.
@@ -133,4 +117,25 @@ func (r *RestApi) Shutdown() humane.Error {
 	}
 
 	return nil
+}
+
+// ListenAndServe serves srv, logging under name, until it's shut down, which
+// isn't an error. The API and the proxy both run their servers through it.
+func ListenAndServe(srv *http.Server, name string) humane.Error {
+	otelzap.L().Info("starting "+name, zap.String("addr", srv.Addr))
+
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return humane.Wrap(err, "Unable to start "+name, "Make sure nothing else listens on "+srv.Addr+" and try again.")
+	}
+
+	otelzap.L().Info(name+" stopped", zap.String("addr", srv.Addr))
+	return nil
+}
+
+func (r *RestApi) newServer(addr string) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           r.router,
+		ReadHeaderTimeout: readHeaderTimeout,
+	}
 }

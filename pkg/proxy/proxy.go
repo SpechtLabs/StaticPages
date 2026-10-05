@@ -538,37 +538,30 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// ServeAsync starts the reverse proxy server on the specified address and logs the startup message.
-// It runs the server in a separate goroutine and handles failure to start by logging a fatal error.
-// It Panics when the Proxy Server could not start
+// ServeAsync starts the reverse proxy on addr in a goroutine and returns at
+// once; Shutdown stops it. If the proxy fails to start, it logs a fatal error.
 func (p *Proxy) ServeAsync(addr string) {
-	go func() {
-		if err := p.Serve(addr); err != nil {
-			otelzap.L().WithError(err).Fatal("Unable to start proxy")
+	p.server = p.newServer(addr)
+	go func(srv *http.Server) {
+		if err := api.ListenAndServe(srv, "reverse proxy"); err != nil {
+			otelzap.L().WithError(err).Fatal("Unable to start proxy", zap.String("addr", srv.Addr))
 		}
-	}()
+	}(p.server)
 }
 
 // Serve starts the reverse proxy server on the specified address and logs its startup state.
 // It returns a humane.Error if the server fails to start.
 func (p *Proxy) Serve(addr string) humane.Error {
-	otelzap.L().Info("starting reverse proxy", zap.String("addr", addr))
+	p.server = p.newServer(addr)
+	return api.ListenAndServe(p.server, "reverse proxy")
+}
 
-	p.server = &http.Server{
+func (p *Proxy) newServer(addr string) *http.Server {
+	return &http.Server{
 		Addr:              addr,
 		Handler:           p,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
-
-	if err := p.server.ListenAndServe(); err != nil {
-		if strings.Contains(err.Error(), http.ErrServerClosed.Error()) {
-			otelzap.L().Info("proxy server stopped", zap.String("addr", addr))
-			return nil
-		}
-		return humane.Wrap(err, "Unable to start proxy", "Make sure the proxy is not already running and try again.")
-	}
-
-	return nil
 }
 
 // Shutdown gracefully stops the proxy server if it is running, releasing any resources and handling in-progress requests.

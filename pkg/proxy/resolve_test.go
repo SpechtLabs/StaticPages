@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -131,4 +132,26 @@ func TestProbeFailure(t *testing.T) {
 			assert.ErrorIs(t, herr, tt.err)
 		})
 	}
+}
+
+func TestProxyLifecycle(t *testing.T) {
+	initLogger()
+
+	p := NewProxy(config.StaticPagesConfig{})
+	assert.Error(t, p.Shutdown(), "shutting down a proxy that never started")
+
+	p.ServeAsync("127.0.0.1:0")
+	assert.NoError(t, p.Shutdown())
+}
+
+func TestProxyServeOnBusyPort(t *testing.T) {
+	initLogger()
+
+	busy, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = busy.Close() })
+
+	herr := NewProxy(config.StaticPagesConfig{}).Serve(busy.Addr().String())
+	require.Error(t, herr)
+	assert.Contains(t, herr.Error(), "Unable to start reverse proxy")
 }

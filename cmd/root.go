@@ -80,13 +80,10 @@ func initConfig() {
 	viper.AutomaticEnv()
 }
 
-func readConfig() {
-	// Find and read the config file
+// readConfig reads the configuration file into configuration.
+func readConfig() humane.Error {
 	if err := viper.ReadInConfig(); err != nil {
-		// Handle errors reading the config file
-		herr := humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
-		fmt.Printf("Unable to read config file, assuming default values: %s\n", herr.Display())
-		os.Exit(1)
+		return humane.Wrap(err, "Unable to read config file", "Make sure the config file exists, is readable, and conforms to the format.")
 	}
 
 	// Expand the optional top-level pageDefaults block into each page before
@@ -94,14 +91,16 @@ func readConfig() {
 	config.ApplyPageDefaults(viper.GetViper())
 
 	if err := viper.Unmarshal(&configuration); err != nil {
-		herr := humane.Wrap(err, "Unable to parse config file", "Make sure the config file exists, is readable, and conforms to the format.")
-		fmt.Printf("Unable to read config file, assuming default values: %s\n", herr.Display())
-		os.Exit(1)
+		return humane.Wrap(err, "Unable to parse config file", "Make sure the config file conforms to the format.")
 	}
+
+	return nil
 }
 
 func loadConfig(_ *cobra.Command, _ []string) error {
-	readConfig()
+	if herr := readConfig(); herr != nil {
+		return herr
+	}
 
 	if otelzap.L().Core().Enabled(zap.DebugLevel) {
 		file, err := os.ReadFile(viper.GetViper().ConfigFileUsed())

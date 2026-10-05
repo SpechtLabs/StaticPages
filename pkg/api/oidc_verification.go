@@ -83,11 +83,17 @@ func verifyAgainstIssuers(ctx context.Context, rawToken string, issuerSet map[st
 	ctx, cancel := context.WithTimeout(ctx, oidcVerificationTimeout)
 	defer cancel()
 
+	// verify binds what every issuer checks the same, so each goroutine carries
+	// only its own issuer.
+	verify := func(issuer string, claimMap config.ClaimMap) verification {
+		metadata, herr := verifyWithIssuer(ctx, rawToken, issuer, claimMap, date)
+		return verification{metadata: metadata, err: herr}
+	}
+
 	results := make(chan verification, len(issuerSet))
 	for issuer, claimMap := range issuerSet {
 		wg.Go(func() {
-			metadata, herr := verifyWithIssuer(ctx, rawToken, issuer, claimMap, date)
-			results <- verification{metadata: metadata, err: herr}
+			results <- verify(issuer, claimMap)
 		})
 	}
 

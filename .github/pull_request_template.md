@@ -50,13 +50,11 @@ Before submitting your pull request, please go through the following checklist t
 
 **If you changed files under `/docs`:**
 
-- [ ] `npm run build` completes successfully.
+- [ ] `mise run docs-build` completes successfully.
 
-**If you changed files under `/src`:**
+**If you changed Go code:**
 
-- [ ] `go build ./...` completes without errors.
-- [ ] `golangci-lint run` shows no warnings.
-- [ ] All unit tests pass.
+- [ ] `mise run check` passes (lint, tidy, tests, YAML, workflows).
 - [ ] Unit test coverage **does not decrease** compared to the main branch.
 
 ---

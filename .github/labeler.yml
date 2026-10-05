@@ -1,0 +1,86 @@
+# The reverse proxy that serves the pages
+proxy:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/proxy/**"
+
+# The upload API and its OIDC verification
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/api/**"
+
+# The S3 client and the page index
+storage:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/s3_client/**"
+
+# Configuration model and defaults
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/config/**"
+          - "config.yaml"
+
+# CLI commands and entrypoint
+cli:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "cmd/**"
+          - "main.go"
+
+# Tests
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*_test.go"
+          - "**/testdata/**"
+
+# Documentation
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+
+# The docs site's build: VuePress config, theme and dependencies
+docs-site:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/.vuepress/**"
+          - "docs/package.json"
+          - "docs/bun.lock"
+
+# Build, release, and CI plumbing
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - ".goreleaser.yaml"
+          - ".release-please-config.json"
+          - ".release-please-manifest.json"
+          - ".mise.toml"
+          - ".golangci.yaml"
+          - ".custom-gcl.yml"
+          - ".pre-commit-config.yaml"
+          - ".markdownlint-cli2.yaml"
+          - ".yamllint.yaml"
+          - ".editorconfig"
+          - "codecov.yml"
+          - "renovate.json"
+          - "Dockerfile"
+          - "go.mod"
+          - "go.sum"
+
+# Add 'enhancement' to any PR whose head branch starts with `feat` or `feature`
+enhancement:
+  - head-branch:
+      - "^feat"
+      - "^feature"
+
+# Add 'bug' to any PR whose head branch starts with `fix` or `bug`
+bug:
+  - head-branch:
+      - "^fix"
+      - "^bug"

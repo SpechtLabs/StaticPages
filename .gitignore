@@ -58,3 +58,13 @@ typings/
 .nuxt
 dist
 **/node_modules
+
+### Go ###
+# The golangci-lint binary with golint-sl built in (`mise run lint-build`)
+custom-gcl
+# `mise run test` and `mise run build` output
+coverage.txt
+bin/
+
+### Commit message check ###
+.github/commit-lint/node_modules/

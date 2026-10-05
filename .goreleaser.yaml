@@ -2,6 +2,8 @@ version: 2
 
 project_name: staticpages
 
+# StaticPages is a server and ships as a container image; the archives carry
+# the same Linux binaries for running it outside a container.
 builds:
   - id: server
     env:
@@ -9,18 +11,27 @@ builds:
     goos:
       - linux
     goarch:
-      - arm64
       - amd64
-    goarm:
-      - "7"
+      - arm64
     binary: staticpages
     mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
-      - -X=main.Version={{.Version}}
-      - -X=main.Commit={{.Commit}}
+      - -s -w
+      - -X=main.Version={{ .Version }}
+      - -X=main.Commit={{ .Commit }}
       - -X=main.Date={{ .CommitDate }}
+      - -X=main.BuiltBy=goreleaser
 
-# Docker image for server (multi-platform)
+archives:
+  - id: server
+    ids:
+      - server
+    name_template: "staticpages_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+# Multi-platform image on GHCR. A snapshot builds it without pushing.
 dockers_v2:
   - id: oci-bundle
     dockerfile: Dockerfile
@@ -36,39 +47,42 @@ dockers_v2:
       - "{{ .Tag }}"
       - "v{{ .Major }}"
     labels:
-      org.opencontainers.image.created: "{{.Date}}"
-      org.opencontainers.image.title: "{{.ProjectName}}"
-      org.opencontainers.image.revision: "{{.FullCommit}}"
-      org.opencontainers.image.version: "{{.Version}}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.version: "{{ .Version }}"
     flags:
       - "--pull"
 
-# Sign docker-image with cosign (keyless)
+# Keyless cosign signature of the pushed image, by digest.
 docker_signs:
   - id: oci-bundle-sign
     artifacts: images
     args:
-    - "sign"
-    - --oidc-issuer=https://token.actions.githubusercontent.com
-    - "${artifact}"
-    - --yes
+      - sign
+      - "${artifact}"
+      - --yes
 
-# Sign everything else
+# A keyless cosign signature over checksums.txt, as a Sigstore bundle, covers
+# every archive through its checksum. `artifacts: binary` would sign nothing:
+# it only matches binaries released on their own, and ours ship in archives.
 signs:
   - cmd: cosign
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
-      - --yes
-      - --oidc-issuer=https://token.actions.githubusercontent.com
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
+      - "--bundle=${signature}"
       - "${artifact}"
-    artifacts: binary
+      - --yes
+    artifacts: checksum
 
-archives:
-  - id: server
-    ids:
-      - server
-    name_template: 'staticpages_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+# release-please writes the changelog and creates the GitHub release; GoReleaser
+# only attaches the artifacts to it.
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: SpechtLabs
+    name: StaticPages
+  mode: keep-existing

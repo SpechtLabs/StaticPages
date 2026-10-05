@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3.24.2
 
 LABEL org.opencontainers.image.title="StaticPages"
 LABEL org.opencontainers.image.source="https://github.com/SpechtLabs/StaticPages"

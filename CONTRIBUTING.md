@@ -53,25 +53,26 @@ Before opening a pull request:
    - Which issue it closes (use `closes #xxxx` syntax).
 
 4. Make sure all checks pass:
-   - `npm run build` (for docs-related changes)
-   - `go build ./...` and `golangci-lint run` (for Go code)
-   - All unit tests pass.
+   - `mise run check` (for Go code: lint, `go mod tidy`, tests, YAML, workflows, GoReleaser config)
+   - `mise run docs-lint` and `mise run docs-build` (for docs-related changes)
    - Unit test coverage **does not decrease**.
 
 ---
 
 ## Directory-Specific Checks
 
+Every tool is pinned in `.mise.toml`; run `mise install` once, and use the tasks below. `mise tasks` lists them all.
+
 ### `/docs` changes
 
-- Run `npm run dev` to validate dev-mode rendering.
-- Run `npm run build` to confirm production build passes.
+- Run `mise run docs-dev` to validate dev-mode rendering.
+- Run `mise run docs-build` to confirm production build passes.
 
-### `/src` (Go code) changes
+### Go code changes
 
-- Run `go build ./...` to verify build success.
-- Run `golangci-lint run` to ensure style compliance.
-- Run all unit tests (`go test ./...`).
+- Run `mise run fmt` to format Go sources, `go.mod` and Markdown.
+- Run `mise run lint` to run golangci-lint with the golint-sl plugin, yamllint and actionlint.
+- Run `mise run test` to run all unit tests with the race detector.
 - Ensure code coverage is maintained or improved.
 
 ---

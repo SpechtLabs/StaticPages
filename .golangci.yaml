@@ -1,0 +1,187 @@
+# golangci-lint configuration for StaticPages.
+#
+# golint-sl runs as a module plugin baked into ./custom-gcl (see .custom-gcl.yml).
+# The prebuilt golangci-lint cannot load the plugin, so run it with
+# `mise run lint`, which builds custom-gcl and runs it.
+# https://golangci-lint.run/usage/configuration/
+
+version: "2"
+
+run:
+  timeout: 10m
+  tests: true
+  modules-download-mode: readonly
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  enable:
+    # Default linters
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+    # Additional recommended linters
+    - dogsled
+    - copyloopvar
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - goprintffuncname
+    - gosec
+    - misspell
+    - modernize
+    - nakedret
+    - nolintlint
+    - prealloc
+    - revive
+    - rowserrcheck
+    - whitespace
+    - unconvert
+    - unparam
+
+    # golint-sl: production-ready Go patterns (error handling, observability, safety)
+    # https://golint.specht-labs.de/
+    - golint-sl
+
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    govet:
+      enable-all: true
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: comment-spacings
+        - name: import-shadowing
+    custom:
+      golint-sl:
+        type: module
+        description: SpechtLabs Go linter collection for production-ready code
+        original-url: github.com/spechtlabs/golint-sl
+
+  exclusions:
+    generated: lax
+    rules:
+      # Hold test files to a lighter bar than production code.
+      - linters:
+          - gosec
+          - goconst
+          - golint-sl
+        path: _test\.go
+
+      # Test tables are laid out for readability rather than size.
+      - linters:
+          - govet
+        text: "^fieldalignment:"
+        path: _test\.go
+
+      # Every request-scoped log goes through otelzap.L().Ctx(ctx), which
+      # attaches the span's trace and span IDs to the record; the checks don't
+      # see through it and ask for a context logger and a trace ID that are
+      # already there. The logs without a context are the servers' start and
+      # stop, before and after any request exists.
+      - linters:
+          - golint-sl
+        text: "^(contextlogger:|wideevents: wide event missing request context)"
+
+      # The handlers log once on each early-return branch, so a request emits
+      # one record however many log calls the function has; the request's span
+      # carries the rest as attributes.
+      - linters:
+          - golint-sl
+        text: "^wideevents: function has \\d+ log statements"
+
+      # The CLI prints its version and its errors for a person to read.
+      - linters:
+          - golint-sl
+        text: "^wideevents: fmt\\.Print"
+        path: ^(main\.go|cmd/)
+
+      # http.Error writes the response body, not a log record.
+      - linters:
+          - golint-sl
+        text: "^wideevents: log call without structured fields"
+        path: ^pkg/proxy/proxy\.go$
+
+      # The handlers, the proxy, the S3 client and the CLI take pages,
+      # configuration, requests and form files their own callers built;
+      # returning quietly on nil would hide a bug rather than prevent one.
+      - linters:
+          - golint-sl
+        text: "^nilcheck:"
+        path: ^(pkg|cmd)/
+
+      # Each page has its own bucket and credentials, and each issuer its own
+      # OIDC provider, so the clients are built for the page or issuer at hand
+      # rather than injected once.
+      - linters:
+          - golint-sl
+        text: "^interfaceconsistency:"
+        path: ^pkg/(api|s3_client)/
+
+      # pageDefaults is merged as raw YAML before it's unmarshalled, which is
+      # the point: a field set to its zero value must still override the
+      # default, and only the untyped maps can tell it apart from an unset one.
+      - linters:
+          - golint-sl
+        text: "^emptyinterface:"
+        path: ^pkg/config/defaults\.go$
+
+      # A plain record of the five things an index entry holds; options would
+      # only make each of them optional.
+      - linters:
+          - golint-sl
+        text: "^optionspattern:"
+        path: ^pkg/s3_client/page_index\.go$
+
+      # Renaming the package changes its import path; that belongs in a
+      # refactor of its own.
+      - linters:
+          - golint-sl
+        text: "^pkgnaming:"
+        path: ^pkg/s3_client/
+
+      # ModifyResponse and the resolver's Dial implement net/http's and net's
+      # function types, so they return plain errors, and Dial hands the
+      # connection to the resolver, which closes it.
+      - linters:
+          - golint-sl
+        text: '^(humaneerror: exported function "ModifyResponse"|resourceclose:|errorwrap:)'
+        path: ^pkg/proxy/proxy\.go$
+
+      # Serve and Shutdown mirror net/http.Server's ListenAndServe and
+      # Shutdown: the serve command stops the servers on a signal or a
+      # configuration reload, not through a context.
+      - linters:
+          - golint-sl
+        text: "^lifecycle: Serve\\(\\)"
+        path: ^pkg/(api/rest|proxy/proxy)\.go$
+
+      # The probes go to the page's configured backend; the request only picks
+      # the path on it.
+      - linters:
+          - gosec
+        text: "^G704:"
+        path: ^pkg/proxy/proxy\.go$
+
+    paths:
+      - third_party$
+      - builtin$
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$

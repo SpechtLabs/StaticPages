@@ -16,9 +16,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/tracing/smithyoteltracing"
 	"github.com/sierrasoftworks/humane-errors-go"
 	"github.com/spechtlabs/go-otel-utils/otelzap"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -62,8 +62,9 @@ func NewS3PageClient(page *config.Page, options ...S3ClientOption) *S3PageClient
 	}
 
 	// Instrument the AWS SDK so each S3 call to the storage backend (Backblaze)
-	// is emitted as a child span under the calling operation.
-	otelaws.AppendMiddlewares(&client.s3Options.APIOptions)
+	// is emitted as a child span under the calling operation. The SDK traces
+	// itself through smithy-go; otelaws, which did this before, is deprecated.
+	client.s3Options.TracerProvider = smithyoteltracing.Adapt(otel.GetTracerProvider())
 
 	client.client = s3.New(client.s3Options)
 

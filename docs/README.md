@@ -55,9 +55,9 @@ config:
         icon: mdi:server
         details: Lightweight Go binary runs anywhere — from Raspberry Pi to production Kubernetes clusters.
 
-  - type: VPReleasesCustom
+  - type: VPReleases
     repo: SpechtLabs/StaticPages
 
-  - type: VPContributorsCustom
+  - type: VPContributors
     repo: SpechtLabs/StaticPages
 ---

@@ -1,7 +1,5 @@
+import { docsKitPlugin } from '@spechtlabs/docs-kit';
 import { viteBundler } from '@vuepress/bundler-vite';
-import { registerComponentsPlugin } from '@vuepress/plugin-register-components';
-import { path } from '@vuepress/utils';
-import container from 'markdown-it-container';
 import { defineUserConfig } from 'vuepress';
 import { plumeTheme } from 'vuepress-theme-plume';
 
@@ -26,52 +24,10 @@ export default defineUserConfig({
   bundler: viteBundler(),
   shouldPrefetch: false,
 
-  extendsMarkdown: (md) => {
-    md.use(container, 'terminal', {
-      validate: (params: string) => /^terminal(?:\s+.*)?$/.test(params.trim()),
-      render: (tokens: any[], idx: number) => {
-        const token = tokens[idx];
-
-        if (token.nesting === 1) {
-          const info = token.info.trim();
-          const rest = info.replace(/^terminal\s*/, '');
-
-          const attrs: Record<string, string> = {};
-          const attrRegex = /(\w+)=((?:"[^"]*")|(?:'[^']*')|(?:[^\s]+))/g;
-          let consumed = '';
-          let match: RegExpExecArray | null;
-
-          while ((match = attrRegex.exec(rest)) !== null) {
-            const key = match[1];
-            let value = match[2];
-
-            if (
-              (value.startsWith('"') && value.endsWith('"')) ||
-              (value.startsWith("'") && value.endsWith("'"))
-            ) {
-              value = value.slice(1, -1);
-            }
-
-            attrs[key] = value;
-            consumed += `${match[0]} `;
-          }
-
-          const positional = rest.replace(consumed, '').trim();
-          const titleRaw = attrs.title ?? positional ?? '';
-          const title = titleRaw ? md.utils.escapeHtml(titleRaw) : '';
-
-          return `\n<Terminal${title ? ` title="${title}"` : ''}>\n`;
-        }
-
-        return '\n</Terminal>\n';
-      },
-    });
-  },
-
   plugins: [
-    registerComponentsPlugin({
-      componentsDir: path.resolve(__dirname, './components'),
-    }),
+    // Shared components, the terminal and cast containers, and the
+    // contributors and releases data, fetched from GitHub at build time
+    docsKitPlugin({ github: { repos: ['SpechtLabs/StaticPages'] } }),
   ],
 
   theme: plumeTheme({

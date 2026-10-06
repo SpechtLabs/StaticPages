@@ -785,11 +785,17 @@ func (p *Proxy) lookupPath(ctx context.Context, page *config.Page, sourceHost st
 	probeCtx, cancelProbes := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelProbes()
 
+	// probe binds what every candidate is probed against, so each goroutine
+	// carries only its own candidate.
+	probe := func(testPath string, primary bool) probeResult {
+		return p.probeCandidate(probeCtx, backendURL, testPath, primary)
+	}
+
 	results := make(chan probeResult, len(testedPaths))
 	for i, testPath := range testedPaths {
 		wg.Go(func() {
 			// The first candidate is the exact requested path.
-			results <- p.probeCandidate(probeCtx, backendURL, testPath, i == 0)
+			results <- probe(testPath, i == 0)
 		})
 	}
 

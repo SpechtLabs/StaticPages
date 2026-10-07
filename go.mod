@@ -4,10 +4,10 @@ go 1.27.1
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.1
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.6
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.0
-	github.com/aws/smithy-go v1.28.2
-	github.com/aws/smithy-go/tracing/smithyoteltracing v1.0.30
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.7
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.1
+	github.com/aws/smithy-go v1.28.4
+	github.com/aws/smithy-go/tracing/smithyoteltracing v1.0.32
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-contrib/zap v1.1.9
@@ -15,8 +15,8 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/johannesboyne/gofakes3 v0.0.0-20260208201424-4c385a1f6a73
 	github.com/sierrasoftworks/humane-errors-go v0.0.0-20260820132314-9a466da5e0f0
-	github.com/spechtlabs/go-otel-utils/otelprovider v0.2.2
-	github.com/spechtlabs/go-otel-utils/otelzap v0.2.2
+	github.com/spechtlabs/go-otel-utils/otelprovider v0.2.3
+	github.com/spechtlabs/go-otel-utils/otelzap v0.2.3
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0

@@ -11,7 +11,7 @@ idiomatic_version_file_enable_tools = []
 [tools]
 # Keep in lockstep with the toolchain directive in go.mod; Renovate bumps both
 # together. The go directive (minimum language version) is bumped by hand.
-go = "1.27.1"
+go = "1.27.2"
 
 # Pre-commit for Git hooks
 pre-commit = "4.6.2"

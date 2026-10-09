@@ -27,7 +27,7 @@ shellcheck = "0.11.0"
 
 # Release tooling. GoReleaser builds the binaries and the container image;
 # cosign signs the checksums and the image.
-goreleaser = "2.18.2"
+goreleaser = "2.18.3"
 cosign = "3.1.3"
 
 # Pins GitHub Actions to commit SHAs (see the update-gha task)

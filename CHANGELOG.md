@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.3](https://github.com/SpechtLabs/StaticPages/compare/v0.2.2...v0.2.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* **deps:** update go modules ([#448](https://github.com/SpechtLabs/StaticPages/issues/448)) ([582f576](https://github.com/SpechtLabs/StaticPages/commit/582f57694864b92d200c436d1fd852a84aa892f9))
+* **deps:** update go modules ([#457](https://github.com/SpechtLabs/StaticPages/issues/457)) ([1af36af](https://github.com/SpechtLabs/StaticPages/commit/1af36afa0e798fa79cf5bd209e4da2e2920b3350))
+* **deps:** update go modules ([#461](https://github.com/SpechtLabs/StaticPages/issues/461)) ([616da3a](https://github.com/SpechtLabs/StaticPages/commit/616da3ae053f2a12827057b5fc263b4e181ea890))
+
 ## [0.2.2](https://github.com/SpechtLabs/StaticPages/compare/v0.2.1...v0.2.2) (2026-10-06)
 
 

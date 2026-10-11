@@ -21,7 +21,7 @@ permissions:
 env:
   # mise itself, pinned; go.yaml explains why.
   # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
-  MISE_VERSION: 2026.10.5
+  MISE_VERSION: 2026.10.7
 
 # Never cancel a release half-way: that can leave a tag published with no
 # artifacts. Pushes key on the SHA so each commit gets its own run; repairs key

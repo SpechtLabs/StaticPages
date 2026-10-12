@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/SpechtLabs/StaticPages#readme",
   "devDependencies": {
-    "@spechtlabs/docs-kit": "github:SpechtLabs/docs-kit#v0.1.0",
+    "@spechtlabs/docs-kit": "github:SpechtLabs/docs-kit#v0.1.1",
     "@vuepress/bundler-vite": "^2.0.0-rc.31",
     "http-server": "^14.1.1",
     "sass-embedded": "^1.105.1",

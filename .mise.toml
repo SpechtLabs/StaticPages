@@ -38,7 +38,7 @@ pinact = "5.0.0"
 # package, which mise installs with the node pinned here.
 bun = "1.4.3"
 node = "24.22.1"
-markdownlint-cli2 = "0.23.3"
+markdownlint-cli2 = "0.24.0"
 
 [tasks.build]
 description = "Build the staticpages binary into bin/"

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.4](https://github.com/SpechtLabs/StaticPages/compare/v0.2.3...v0.2.4) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** update go modules ([#516](https://github.com/SpechtLabs/StaticPages/issues/516)) ([6c7a710](https://github.com/SpechtLabs/StaticPages/commit/6c7a710fb1042b803f062157e819773192b9ba24))
+* **deps:** update module github.com/aws/smithy-go/tracing/smithyoteltracing to v1.0.34 ([#509](https://github.com/SpechtLabs/StaticPages/issues/509)) ([6b23224](https://github.com/SpechtLabs/StaticPages/commit/6b232243e950abdb51c5c912d1f1ea74d0702934))
+
 ## [0.2.3](https://github.com/SpechtLabs/StaticPages/compare/v0.2.2...v0.2.3) (2026-10-12)
 
 

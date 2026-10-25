@@ -31,7 +31,7 @@ goreleaser = "2.19.0"
 cosign = "3.1.4"
 
 # Pins GitHub Actions to commit SHAs (see the update-gha task)
-pinact = "5.0.1"
+pinact = "5.0.2"
 
 # Documentation website (docs/): VuePress builds under bun, and markdownlint-cli2
 # is the same version the docs workflow runs. markdownlint-cli2 is an npm

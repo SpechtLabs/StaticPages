@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.4](https://github.com/SpechtLabs/StaticPages/compare/v0.2.3...v0.2.4) (2026-10-31)
+
+
+### Bug Fixes
+
+* **deps:** update go modules ([#516](https://github.com/SpechtLabs/StaticPages/issues/516)) ([6c7a710](https://github.com/SpechtLabs/StaticPages/commit/6c7a710fb1042b803f062157e819773192b9ba24))
+* **deps:** update go modules ([#535](https://github.com/SpechtLabs/StaticPages/issues/535)) ([492238f](https://github.com/SpechtLabs/StaticPages/commit/492238f9dd5992bbfbf2ea596327db1bb9d7d600))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.11 ([#530](https://github.com/SpechtLabs/StaticPages/issues/530)) ([46c14cc](https://github.com/SpechtLabs/StaticPages/commit/46c14cc3958ee4501f7986ed4b2397615349adb4))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.13 ([#545](https://github.com/SpechtLabs/StaticPages/issues/545)) ([2d999a7](https://github.com/SpechtLabs/StaticPages/commit/2d999a7f6cb2ea098d1f208939e3ce0f91425570))
+* **deps:** update module github.com/aws/smithy-go/tracing/smithyoteltracing to v1.0.34 ([#509](https://github.com/SpechtLabs/StaticPages/issues/509)) ([6b23224](https://github.com/SpechtLabs/StaticPages/commit/6b232243e950abdb51c5c912d1f1ea74d0702934))
+* **deps:** update module github.com/gin-contrib/zap to v1.1.10 ([#547](https://github.com/SpechtLabs/StaticPages/issues/547)) ([e34adfc](https://github.com/SpechtLabs/StaticPages/commit/e34adfc30bdcfe5514df086ba4ec7543ddd704ee))
+
 ## [0.2.3](https://github.com/SpechtLabs/StaticPages/compare/v0.2.2...v0.2.3) (2026-10-12)
 
 

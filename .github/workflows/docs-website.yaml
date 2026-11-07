@@ -142,7 +142,7 @@ jobs:
           path: ./dist
 
       - name: Upload to Static Pages
-        uses: SpechtLabs/StaticPages-Upload@3944e1276611ae83bcd7f363c6af09353c4b1600 # main
+        uses: SpechtLabs/StaticPages-Upload@d52e76910aae5c601b8b95d822974149431d1410 # main
         with:
           endpoint: https://pages.specht-labs.de
           site-dir: dist/

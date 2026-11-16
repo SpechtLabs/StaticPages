@@ -22,7 +22,7 @@
         "vuepress-theme-plume": "1.0.0-rc.216",
       },
       "optionalDependencies": {
-        "@rollup/rollup-linux-x64-gnu": "^4.68.3",
+        "@rollup/rollup-linux-x64-gnu": "^4.68.4",
         "sass-embedded-linux-x64": "latest",
       },
     },

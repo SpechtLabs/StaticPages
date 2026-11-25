@@ -6,8 +6,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.48.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.21.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.116.0
-	github.com/aws/smithy-go v1.28.9
-	github.com/aws/smithy-go/tracing/smithyoteltracing v1.0.37
+	github.com/aws/smithy-go v1.28.10
+	github.com/aws/smithy-go/tracing/smithyoteltracing v1.0.38
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-contrib/zap v1.1.11
